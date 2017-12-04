@@ -1,0 +1,194 @@
+apply plugin: 'scala'
+apply plugin: 'java'
+apply plugin: 'application'
+
+[compileJava, compileTestJava, javadoc]*.options*.encoding = 'utf-8'
+[compileJava, compileTestJava, compileScala]*.sourceCompatibility = "1.8"
+[compileJava, compileTestJava, compileScala]*.targetCompatibility = "1.8"
+
+// generate gradle wrapper
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.14.1'
+}
+
+// scala compiler options
+tasks.withType(ScalaCompile) {
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+    configure(scalaCompileOptions.forkOptions) {
+        memoryMaximumSize = '512m'
+    }
+}
+
+ext {
+    finagleVersion = '6.36.0'//注意: ' 与 "
+    projectpath = '/data0/index'
+}
+
+applicationName = 'index'  // name of tar, zip and script
+mainClassName = 'com.sina.index.IndexBootup'  // project main class name
+
+jar {
+    exclude '*.conf', '*.xml'
+}
+
+repositories {
+    mavenLocal()
+    maven { url 'http://10.13.3.72:8880/nexus/content/groups/public' }
+    maven { url 'http://maven.oschina.net/content/groups/public/' }
+    mavenCentral()
+}
+
+project.configurations {
+    all*.exclude group: 'log4j', module: 'log4j'
+    all*.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+}
+
+dependencies {
+    compile "org.scala-lang:scala-library:2.11.8"
+    compile "org.scala-lang:scala-compiler:2.11.8"
+    compile "org.scala-lang:scala-reflect:2.11.8"
+
+    //finagle
+    compile "com.twitter:finagle-core_2.11:${finagleVersion}"
+    compile "com.twitter:finagle-http_2.11:${finagleVersion}"
+    compile "com.twitter:finagle-mysql_2.11:${finagleVersion}"
+    compile "com.twitter:finagle-redis_2.11:${finagleVersion}"
+
+    compile "com.twitter.common:metrics:0.0.37"
+
+    //zookeeper
+    compile 'org.apache.zookeeper:zookeeper:3.4.6'
+    compile 'org.apache.curator:curator-recipes:2.7.1'
+
+    //kafka
+    compile 'org.apache.kafka:kafka_2.11:0.9.0.1'
+
+    //apache commons
+    compile 'org.apache.commons:commons-dbcp2:2.1.1'
+    compile 'org.apache.commons:commons-lang3:3.4'
+    compile 'commons-io:commons-io:2.4'
+
+    compile 'com.google.guava:guava:19.0'
+
+    compile 'com.fasterxml.jackson.module:jackson-module-scala_2.11:2.7.2'
+
+    compile 'org.slf4j:slf4j-api:1.7.21'
+    compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.6'
+    compile 'org.apache.logging.log4j:log4j-core:2.6'
+    compile 'com.lmax:disruptor:3.3.4'
+//    runtime 'org.apache.logging.log4j:log4j-api:2.5'
+
+    compile 'com.typesafe:config:1.3.0'
+
+    //compress
+    compile 'net.jpountz.lz4:lz4:1.3.0'
+    compile 'org.xerial.snappy:snappy-java:1.1.2'
+
+    //protobuffer
+    //compile 'com.google.protobuf:protobuf-java:2.6.1'
+    compile 'com.google.protobuf:protobuf-java:2.4.1'
+//    compile 'com.google.protobuf:protobuf-java:3.0.0-beta-3'
+    compile 'com.googlecode.protobuf-java-format:protobuf-java-format:1.4'
+
+    compile 'org.apache.thrift:libthrift:0.9.3'
+
+    compile group: 'org.influxdb', name: 'influxdb-java', version: '2.2'
+
+    //test
+    //testCompile 'org.scalacheck:scalacheck_2.11:1.13.0'
+    testCompile 'org.scalatest:scalatest_2.11:3.0.0-M15'
+    testCompile 'org.mockito:mockito-core:2.0.43-beta'
+
+    testCompile 'org.jmockit:jmockit:1.19'
+    testCompile 'junit:junit:4.11'
+}
+
+task "mkdirs" << {
+    sourceSets*.scala.srcDirs*.each { it.mkdirs() }
+    sourceSets*.java.srcDirs*.each { it.mkdirs() }
+    sourceSets*.resources.srcDirs*.each { it.mkdirs() }
+}
+
+// important（把java与scala的源代码目录全映射到scala上, gradle build时有用，gradlew build时报错
+// 这样gradle compileScala时就能同时编译java与scala的源代码）
+sourceSets {
+    main {
+        scala {
+            srcDirs = ['src/main/scala', 'src/main/java']
+        }
+        java {
+            srcDirs = []
+        }
+    }
+
+    test {
+        scala {
+            srcDirs = ['src/test/scala', 'src/test/java']
+        }
+        java {
+            srcDirs = []
+        }
+    }
+}
+
+// customize gradle distribution
+distributions {
+    main {
+        contents {
+            into('conf') {
+                from { 'src/main/resources' }
+            }
+        }
+        contents {
+            into('bin') {
+                from { 'src/main/bash/send_alert.py' }
+            }
+        }
+    }
+}
+
+task copyTestResources(type: Copy) {
+    from "${projectDir}/src/test/resources"
+    into "${buildDir}/classes/test"
+}
+processTestResources.dependsOn copyTestResources
+
+// project runtimes JVM options
+applicationDefaultJvmArgs = ["-server",
+                             "-Dindex.home=${projectpath}",
+                             "-Dlog4j.configurationFile=${projectpath}/conf/log4j2.xml",
+                             "-Xms64g",
+                             "-Xmx64g",
+                             "-XX:MaxTenuringThreshold=0",
+                             "-XX:+UseG1GC",
+                             "-XX:MaxGCPauseMillis=50",
+                             "-XX:G1HeapRegionSize=32m",
+                             "-XX:InitiatingHeapOccupancyPercent=70",
+                             "-XX:G1HeapWastePercent=5",
+                             "-XX:+ParallelRefProcEnabled",
+                             "-XX:G1MixedGCCountTarget=16",
+                             "-XX:+UnlockExperimentalVMOptions",
+                             "-XX:G1OldCSetRegionThresholdPercent=5",
+                             "-XX:G1NewSizePercent=5",
+                             "-XX:G1MaxNewSizePercent=15",
+                             "-verbose:gc",
+//                             "-verbose:jni",
+                             "-XX:+PrintGCDetails",
+                             "-XX:+PrintGCDateStamps",
+                             "-XX:+PrintGCApplicationStoppedTime",
+                             "-XX:+PrintHeapAtGC",
+                             "-XX:+PrintGCCause",
+                             "-XX:+PrintTenuringDistribution",
+                             "-XX:+PrintReferenceGC",
+                             "-XX:+PrintPromotionFailure",
+//                             "-XX:+PrintJNIGCStalls",
+                             "-XX:+PrintAdaptiveSizePolicy",
+                             "-XX:+UnlockDiagnosticVMOptions",
+                             "-XX:+UnlockCommercialFeatures",
+                             "-XX:+DebugNonSafepoints",
+                             "-Dorg.jboss.netty.epollBugWorkaround=true",
+                             "-Dio.netty.epollBugWorkaround=true",
+                             "-Xloggc:${projectpath}/temp/gc.log",
+                             "-XX:+FlightRecorder",
+                             "-XX:FlightRecorderOptions=defaultrecording=true,disk=true,maxchunksize=16m,repository=${projectpath}/temp/jfr,dumponexit=true,dumponexitpath=${projectpath}/temp/jfr,maxage=72h,maxsize=32g"]

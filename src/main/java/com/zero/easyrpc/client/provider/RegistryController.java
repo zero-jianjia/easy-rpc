@@ -3,7 +3,7 @@ package com.zero.easyrpc.client.provider;
 import com.zero.easyrpc.common.exception.RemotingException;
 import com.zero.easyrpc.common.transport.body.AckCustomBody;
 import com.zero.easyrpc.common.utils.SystemClock;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
+import com.zero.easyrpc.netty4.Transporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import static com.zero.easyrpc.common.serialization.SerializerHolder.serializerImpl;
+import static com.zero.easyrpc.common.serialization.SerializerFactory.serializerImpl;
 
 /**
  * provider端专业去连接registry的管理控制对象，用来处理provider与registry一切交互事宜
@@ -38,7 +38,7 @@ public class RegistryController {
     public void publishedAndStartProvider() throws InterruptedException, RemotingException {
 
         // stack copy
-        List<RemotingTransporter> transporters = defaultProvider.getPublishRemotingTransporters();
+        List<Transporter> transporters = defaultProvider.getPublishRemotingTransporters();
 
         if(null == transporters || transporters.isEmpty()){
             logger.warn("service is empty please call DefaultProvider #publishService method");
@@ -56,7 +56,7 @@ public class RegistryController {
 
             for (String eachAddress : addresses) {
 
-                for (RemotingTransporter request : transporters) {
+                for (Transporter request : transporters) {
 
                     pushPublishServiceToRegistry(request,eachAddress);
 
@@ -65,12 +65,12 @@ public class RegistryController {
         }
     }
 
-    private void pushPublishServiceToRegistry(RemotingTransporter request, String eachAddress) throws InterruptedException, RemotingException {
+    private void pushPublishServiceToRegistry(Transporter request, String eachAddress) throws InterruptedException, RemotingException {
         logger.info("[{}] transporters matched", request);
-        messagesNonAcks.put(request.getOpaque(), new MessageNonAck(request, eachAddress));
-        RemotingTransporter remotingTransporter = defaultProvider.getNettyRemotingClient().invokeSync(eachAddress, request, 3000);
+        messagesNonAcks.put(request.getRequestId(), new MessageNonAck(request, eachAddress));
+        Transporter remotingTransporter = defaultProvider.getNettyRemotingClient().invokeSync(eachAddress, request, 3000);
         if(null != remotingTransporter){
-            AckCustomBody ackCustomBody = serializerImpl().readObject(remotingTransporter.bytes(), AckCustomBody.class);
+            AckCustomBody ackCustomBody = serializerImpl().readObject(remotingTransporter.getBytes(), AckCustomBody.class);
 
             logger.info("received ack info [{}]", ackCustomBody);
             if(ackCustomBody.isSuccess()){
@@ -95,22 +95,22 @@ public class RegistryController {
 
         private final long id;
 
-        private final RemotingTransporter msg;
+        private final Transporter msg;
         private final String address;
         private final long timestamp = SystemClock.millisClock().now();
 
-        public MessageNonAck(RemotingTransporter msg, String address) {
+        public MessageNonAck(Transporter msg, String address) {
             this.msg = msg;
             this.address = address;
 
-            id = msg.getOpaque();
+            id = msg.getRequestId();
         }
 
         public long getId() {
             return id;
         }
 
-        public RemotingTransporter getMsg() {
+        public Transporter getMsg() {
             return msg;
         }
 

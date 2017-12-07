@@ -7,7 +7,7 @@ import com.zero.easyrpc.common.protocal.Protocol;
 import com.zero.easyrpc.common.rpc.RegisterMeta;
 import com.zero.easyrpc.common.transport.body.AckCustomBody;
 import com.zero.easyrpc.common.transport.body.SubcribeResultCustomBody;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
+import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.Channel;
 import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;
@@ -60,7 +60,7 @@ public class RegistryConsumerManager {
         buildSubcribeResultCustomBody(meta, subcribeResultCustomBody,loadBalanceStrategy);
 
         // 传送给consumer对象的RemotingTransporter
-        RemotingTransporter sendConsumerRemotingTrasnporter = RemotingTransporter.createRequestTransporter(Protocol.SUBCRIBE_RESULT,
+        Transporter sendConsumerRemotingTrasnporter = Transporter.createRequestTransporter(Protocol.SUBCRIBE_RESULT,
                 subcribeResultCustomBody);
 
         pushMessageToConsumer(sendConsumerRemotingTrasnporter, meta.getServiceName());
@@ -80,7 +80,7 @@ public class RegistryConsumerManager {
         SubcribeResultCustomBody subcribeResultCustomBody = new SubcribeResultCustomBody();
         buildSubcribeResultCustomBody(meta, subcribeResultCustomBody,null);
 
-        RemotingTransporter sendConsumerRemotingTrasnporter = RemotingTransporter.createRequestTransporter(Protocol.SUBCRIBE_SERVICE_CANCEL,
+        Transporter sendConsumerRemotingTrasnporter = Transporter.createRequestTransporter(Protocol.SUBCRIBE_SERVICE_CANCEL,
                 subcribeResultCustomBody);
 
         pushMessageToConsumer(sendConsumerRemotingTrasnporter, meta.getServiceName());
@@ -139,13 +139,13 @@ public class RegistryConsumerManager {
         subcribeResultCustomBody.setRegisterMeta(registerMetas);
     }
 
-    private void pushMessageToConsumer(RemotingTransporter sendConsumerRemotingTrasnporter, String serviceName) throws RemotingSendRequestException,
+    private void pushMessageToConsumer(Transporter sendConsumerRemotingTrasnporter, String serviceName) throws RemotingSendRequestException,
             RemotingTimeoutException, InterruptedException {
         // 所有的订阅者的channel集合
         if (!subscriberChannels.isEmpty()) {
             for (Channel channel : subscriberChannels) {
                 if (isChannelSubscribeOnServiceMeta(serviceName, channel)) {
-                    RemotingTransporter remotingTransporter = this.defaultRegistryServer.getRemotingServer().invokeSync(channel,
+                    Transporter remotingTransporter = this.defaultRegistryServer.getRemotingServer().invokeSync(channel,
                             sendConsumerRemotingTrasnporter, 3000l);
                     // 如果是ack返回是null说明是超时了，需要重新发送
                     if (remotingTransporter == null) {
@@ -154,7 +154,7 @@ public class RegistryConsumerManager {
                         messagesNonAcks.add(msgNonAck);
                     }
                     // 如果消费者端消费者消费失败
-                    AckCustomBody ackCustomBody = (AckCustomBody) remotingTransporter.getCustomHeader();
+                    AckCustomBody ackCustomBody = (AckCustomBody) remotingTransporter.getContent();
                     if (!ackCustomBody.isSuccess()) {
                         logger.warn("consumer fail handler this message");
                         MessageNonAck msgNonAck = new MessageNonAck(remotingTransporter, channel,serviceName);
@@ -172,22 +172,22 @@ public class RegistryConsumerManager {
         private final long id;
 
         private final String serviceName;
-        private final RemotingTransporter msg;
+        private final Transporter msg;
         private final Channel channel;
 
-        public MessageNonAck(RemotingTransporter msg, Channel channel,String serviceName) {
+        public MessageNonAck(Transporter msg, Channel channel,String serviceName) {
             this.msg = msg;
             this.channel = channel;
             this.serviceName = serviceName;
 
-            id = msg.getOpaque();
+            id = msg.getRequestId();
         }
 
         public long getId() {
             return id;
         }
 
-        public RemotingTransporter getMsg() {
+        public Transporter getMsg() {
             return msg;
         }
 

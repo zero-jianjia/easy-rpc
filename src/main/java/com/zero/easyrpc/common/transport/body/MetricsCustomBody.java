@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * Created by jianjia1 on 17/12/07.
  */
-public class MetricsCustomBody implements CommonCustomBody {
+public class MetricsCustomBody implements ContentBody {
 
     private List<ServiceMetrics> serviceMetricses;
 

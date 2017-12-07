@@ -9,7 +9,7 @@ import com.zero.easyrpc.client.consumer.ConsumerClient;
 import com.zero.easyrpc.client.consumer.ConsumerConfig;
 import com.zero.easyrpc.client.consumer.proxy.ProxyFactory;
 import com.zero.easyrpc.example.generic.test_2.HelloService;
-import com.zero.easyrpc.transport.netty.NettyClientConfig;
+import com.zero.easyrpc.netty4.ClientConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,10 +51,10 @@ public class CommonBenchmarkClient {
 		
 		int processors = Runtime.getRuntime().availableProcessors();
 
-		NettyClientConfig registryNettyClientConfig = new NettyClientConfig();
+		ClientConfig registryNettyClientConfig = new ClientConfig();
 		registryNettyClientConfig.setDefaultAddress("127.0.0.1:18010");
 
-		NettyClientConfig provideClientConfig = new NettyClientConfig();
+		ClientConfig provideClientConfig = new ClientConfig();
 
 		ConsumerClient client = new ConsumerClient(registryNettyClientConfig, provideClientConfig, new ConsumerConfig());
 

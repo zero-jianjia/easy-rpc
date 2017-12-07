@@ -11,7 +11,7 @@ import java.util.List;
  * 注册中心向consumer反馈的服务信息
  * Created by jianjia1 on 17/12/07.
  */
-public class SubcribeResultCustomBody implements CommonCustomBody {
+public class SubcribeResultCustomBody implements ContentBody {
 
     private String serviceName;
 

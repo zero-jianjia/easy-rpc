@@ -10,11 +10,8 @@ public class Protocol {
     /** Magic */
     public static final short MAGIC = (short) 0xbabe;
 
-    /** 发送的是请求信息*/
-    public static final byte REQUEST_REMOTING = 1;
-
-    /** 发送的是响应信息*/
-    public static final byte RESPONSE_REMOTING = 2;
+    public static final byte REQUEST = 1;
+    public static final byte RESPONSE = 2;
 
 
     public static final byte RPC_REMOTING = 3;
@@ -67,7 +64,7 @@ public class Protocol {
         return type;
     }
 
-    public void type(byte type) {
+    public void setType(byte type) {
         this.type = type;
     }
 
@@ -75,7 +72,7 @@ public class Protocol {
         return sign;
     }
 
-    public void sign(byte sign) {
+    public void setSign(byte sign) {
         this.sign = sign;
     }
 
@@ -83,7 +80,7 @@ public class Protocol {
         return id;
     }
 
-    public void id(long id) {
+    public void setId(long id) {
         this.id = id;
     }
 
@@ -91,7 +88,7 @@ public class Protocol {
         return bodyLength;
     }
 
-    public void bodyLength(int bodyLength) {
+    public void setBodyLength(int bodyLength) {
         this.bodyLength = bodyLength;
     }
 

@@ -4,7 +4,7 @@ import com.zero.easyrpc.common.rpc.RegisterMeta;
 import com.zero.easyrpc.common.rpc.ServiceReviewState;
 import com.zero.easyrpc.registry.base.DefaultRegistryServer;
 import com.zero.easyrpc.registry.base.RegistryServerConfig;
-import com.zero.easyrpc.transport.netty.NettyServerConfig;
+import com.zero.easyrpc.netty4.ServerConfig;
 import io.netty.util.internal.ConcurrentSet;
 
 
@@ -26,7 +26,7 @@ public class RegistryTest {
         t.setDaemon(true);
         t.start();
         
-		NettyServerConfig config = new NettyServerConfig();
+		ServerConfig config = new ServerConfig();
 		RegistryServerConfig registryServerConfig = new RegistryServerConfig();
 		registryServerConfig.setDefaultReviewState(ServiceReviewState.PASS_REVIEW);
 		//注册中心的端口号

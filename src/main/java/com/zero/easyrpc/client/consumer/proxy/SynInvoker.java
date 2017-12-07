@@ -11,7 +11,7 @@ import com.zero.easyrpc.common.transport.body.RequestCustomBody;
 import com.zero.easyrpc.common.transport.body.ResponseCustomBody;
 import com.zero.easyrpc.common.utils.ChannelGroup;
 import com.zero.easyrpc.common.utils.SystemClock;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
+import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.Channel;
 import net.bytebuddy.implementation.bind.annotation.AllArguments;
 import net.bytebuddy.implementation.bind.annotation.Origin;
@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Method;
 import java.util.Map;
 
-import static com.zero.easyrpc.common.serialization.SerializerHolder.serializerImpl;
+import static com.zero.easyrpc.common.serialization.SerializerFactory.serializerImpl;
 
 /**
  * 同步调用的类
@@ -89,12 +89,12 @@ public class SynInvoker {
         }
 
 
-        RemotingTransporter request = RemotingTransporter.createRequestTransporter(Protocol.RPC_REQUEST, body);
-        RemotingTransporter response;
+        Transporter request = Transporter.createRequestTransporter(Protocol.RPC_REQUEST, body);
+        Transporter response;
         try {
 
             response = consumer.sendRpcRequestToProvider(channelGroup.next(),request,time);
-            ResponseCustomBody customBody = serializerImpl().readObject(response.bytes(), ResponseCustomBody.class);
+            ResponseCustomBody customBody = serializerImpl().readObject(response.getBytes(), ResponseCustomBody.class);
             return customBody.getResult();
 
         } catch (RemotingTimeoutException e) {

@@ -9,7 +9,7 @@ import java.util.List;
  *  管理员发送给监控中心的信息
  * Created by jianjia1 on 17/12/04.
  */
-public class ProviderMetricsCustomBody implements CommonCustomBody {
+public class ProviderMetricsCustomBody implements ContentBody {
 
     private List<MetricsReporter> metricsReporter;
 

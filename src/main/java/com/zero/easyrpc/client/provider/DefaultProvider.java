@@ -4,17 +4,17 @@ import com.zero.easyrpc.client.provider.model.DefaultProviderInactiveProcessor;
 import com.zero.easyrpc.client.provider.model.ServiceWrapper;
 import com.zero.easyrpc.common.exception.RemotingException;
 import com.zero.easyrpc.common.protocal.Protocol;
-import com.zero.easyrpc.common.serialization.SerializerHolder;
+import com.zero.easyrpc.common.serialization.SerializerFactory;
 import com.zero.easyrpc.common.transport.body.AckCustomBody;
 import com.zero.easyrpc.common.transport.body.ManagerServiceCustomBody;
 import com.zero.easyrpc.common.transport.body.PublishServiceCustomBody;
 import com.zero.easyrpc.common.utils.NamedThreadFactory;
 import com.zero.easyrpc.common.utils.Pair;
-import com.zero.easyrpc.transport.netty.NettyClientConfig;
-import com.zero.easyrpc.transport.netty.NettyRemotingClient;
-import com.zero.easyrpc.transport.netty.NettyRemotingServer;
-import com.zero.easyrpc.transport.netty.NettyServerConfig;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
+import com.zero.easyrpc.netty4.Transporter;
+import com.zero.easyrpc.netty4.ClientConfig;
+import com.zero.easyrpc.netty4.Client;
+import com.zero.easyrpc.netty4.Server;
+import com.zero.easyrpc.netty4.ServerConfig;
 import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,12 +30,12 @@ public class DefaultProvider implements Provider {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultProvider.class);
 
-    private NettyClientConfig clientConfig;               // 向注册中心连接的netty client配置
-    private NettyServerConfig serverConfig; 			  // 等待服务提供者连接的netty server的配置
+    private ClientConfig clientConfig;               // 向注册中心连接的netty client配置
+    private ServerConfig serverConfig; 			  // 等待服务提供者连接的netty server的配置
 
-    private NettyRemotingClient nettyRemotingClient; 	  // 连接monitor和注册中心
-    private NettyRemotingServer nettyRemotingServer;      // 等待被Consumer连接
-    private NettyRemotingServer nettyRemotingVipServer;   // 等待被Consumer VIP连接
+    private Client nettyRemotingClient; 	  // 连接monitor和注册中心
+    private Server nettyRemotingServer;      // 等待被Consumer连接
+    private Server nettyRemotingVipServer;   // 等待被Consumer VIP连接
 
     private ProviderRegistryController providerController;// provider端向注册中心连接的业务逻辑的控制器
     private ProviderRPCController providerRPCController;  // consumer端远程调用的核心控制器
@@ -46,7 +46,7 @@ public class DefaultProvider implements Provider {
     private Channel monitorChannel; 					  // 连接monitor端的channel
 
     /********* 要发布的服务的信息 ***********/
-    private List<RemotingTransporter> publishRemotingTransporters;
+    private List<Transporter> publishRemotingTransporters;
     /************ 全局发布的信息 ************/
     private ConcurrentMap<String, PublishServiceCustomBody> globalPublishService = new ConcurrentHashMap<String, PublishServiceCustomBody>();
     /***** 注册中心的地址 ******/
@@ -68,14 +68,14 @@ public class DefaultProvider implements Provider {
 
 
     public DefaultProvider() {
-        this.clientConfig = new NettyClientConfig();
-        this.serverConfig = new NettyServerConfig();
+        this.clientConfig = new ClientConfig();
+        this.serverConfig = new ServerConfig();
         providerController = new ProviderRegistryController(this);
         providerRPCController = new ProviderRPCController(this);
         initialize();
     }
 
-    public DefaultProvider(NettyClientConfig clientConfig, NettyServerConfig serverConfig) {
+    public DefaultProvider(ClientConfig clientConfig, ServerConfig serverConfig) {
         this.clientConfig = clientConfig;
         this.serverConfig = serverConfig;
         providerController = new ProviderRegistryController(this);
@@ -85,12 +85,12 @@ public class DefaultProvider implements Provider {
 
     private void initialize() {
 
-        this.nettyRemotingServer = new NettyRemotingServer(this.serverConfig);
-        this.nettyRemotingClient = new NettyRemotingClient(this.clientConfig);
-        this.nettyRemotingVipServer = new NettyRemotingServer(this.serverConfig);
+        this.nettyRemotingServer = new Server(this.serverConfig);
+        this.nettyRemotingClient = new Client(this.clientConfig);
+        this.nettyRemotingVipServer = new Server(this.serverConfig);
 
-        this.remotingExecutor = Executors.newFixedThreadPool(serverConfig.getServerWorkerThreads(), new NamedThreadFactory("providerExecutorThread_"));
-        this.remotingVipExecutor = Executors.newFixedThreadPool(serverConfig.getServerWorkerThreads() / 2, new NamedThreadFactory("providerExecutorThread_"));
+        this.remotingExecutor = Executors.newFixedThreadPool(serverConfig.getWorkerThreads(), new NamedThreadFactory("providerExecutorThread_"));
+        this.remotingVipExecutor = Executors.newFixedThreadPool(serverConfig.getWorkerThreads() / 2, new NamedThreadFactory("providerExecutorThread_"));
         // 注册处理器
         this.registerProcessor();
 
@@ -178,7 +178,7 @@ public class DefaultProvider implements Provider {
         this.nettyRemotingVipServer.registerDefaultProcessor(new DefaultProviderRPCProcessor(this), this.remotingVipExecutor);
     }
 
-    public List<RemotingTransporter> getPublishRemotingTransporters() {
+    public List<Transporter> getPublishRemotingTransporters() {
         return publishRemotingTransporters;
     }
 
@@ -198,7 +198,7 @@ public class DefaultProvider implements Provider {
     }
 
     @Override
-    public void handlerRPCRequest(RemotingTransporter request, Channel channel) {
+    public void handlerRPCRequest(Transporter request, Channel channel) {
         providerRPCController.handlerRPCRequest(request, channel);
     }
 
@@ -262,12 +262,12 @@ public class DefaultProvider implements Provider {
     }
 
     private void initGlobalService() {
-        List<RemotingTransporter> list = this.publishRemotingTransporters; // Stack
+        List<Transporter> list = this.publishRemotingTransporters; // Stack
         // copy
 
         if (null != list && !list.isEmpty()) {
-            for (RemotingTransporter remotingTransporter : list) {
-                PublishServiceCustomBody customBody = (PublishServiceCustomBody) remotingTransporter.getCustomHeader();
+            for (Transporter remotingTransporter : list) {
+                PublishServiceCustomBody customBody = (PublishServiceCustomBody) remotingTransporter.getContent();
                 String serviceName = customBody.getServiceProviderName();
                 this.globalPublishService.put(serviceName, customBody);
             }
@@ -286,26 +286,26 @@ public class DefaultProvider implements Provider {
      * @param degradeService
      * @return
      */
-    public RemotingTransporter handlerDegradeServiceRequest(RemotingTransporter request, Channel channel, byte degradeService) {
+    public Transporter handlerDegradeServiceRequest(Transporter request, Channel channel, byte degradeService) {
         // 默认的ack返回体
-        AckCustomBody ackCustomBody = new AckCustomBody(request.getOpaque(), false);
-        RemotingTransporter remotingTransporter = RemotingTransporter.createResponseTransporter(Protocol.ACK, ackCustomBody, request.getOpaque());
+        AckCustomBody ackCustomBody = new AckCustomBody(request.getRequestId(), false);
+        Transporter remotingTransporter = Transporter.createResponseTransporter(Protocol.ACK, ackCustomBody, request.getRequestId());
 
         // 发布的服务是空的时候，默认返回操作失败
         if (publishRemotingTransporters == null || publishRemotingTransporters.size() == 0) {
             return remotingTransporter;
         }
         // 请求体
-        ManagerServiceCustomBody subcribeRequestCustomBody = SerializerHolder.serializerImpl().readObject(request.bytes(), ManagerServiceCustomBody.class);
+        ManagerServiceCustomBody subcribeRequestCustomBody = SerializerFactory.serializerImpl().readObject(request.getBytes(), ManagerServiceCustomBody.class);
         // 服务名
         String serviceName = subcribeRequestCustomBody.getSerivceName();
 
         // 判断请求的服务名是否在发布的服务中
         boolean checkSerivceIsExist = false;
 
-        for (RemotingTransporter eachTransporter : publishRemotingTransporters) {
+        for (Transporter eachTransporter : publishRemotingTransporters) {
 
-            PublishServiceCustomBody body = (PublishServiceCustomBody) eachTransporter.getCustomHeader();
+            PublishServiceCustomBody body = (PublishServiceCustomBody) eachTransporter.getContent();
             if (body.getServiceProviderName().equals(serviceName) && body.isSupportDegradeService()) {
                 checkSerivceIsExist = true;
                 break;
@@ -334,7 +334,7 @@ public class DefaultProvider implements Provider {
         return this.nettyRemotingClient.createChannel(monitorAddress);
     }
 
-    public NettyRemotingClient getNettyRemotingClient() {
+    public Client getNettyRemotingClient() {
         return nettyRemotingClient;
     }
 

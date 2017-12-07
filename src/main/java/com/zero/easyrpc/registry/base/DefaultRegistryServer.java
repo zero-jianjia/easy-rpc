@@ -3,10 +3,10 @@ package com.zero.easyrpc.registry.base;
 import com.alibaba.fastjson.JSON;
 import com.zero.easyrpc.common.utils.NamedThreadFactory;
 import com.zero.easyrpc.common.utils.PersistUtils;
+import com.zero.easyrpc.netty4.Server;
 import com.zero.easyrpc.registry.RegistryServer;
 import com.zero.easyrpc.registry.model.RegistryPersistRecord;
-import com.zero.easyrpc.transport.netty.NettyRemotingServer;
-import com.zero.easyrpc.transport.netty.NettyServerConfig;
+import com.zero.easyrpc.netty4.ServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,9 +37,9 @@ public class DefaultRegistryServer implements RegistryServer {
     private static final Logger logger = LoggerFactory.getLogger(DefaultRegistryServer.class);
 
 
-    private final NettyServerConfig nettyServerConfig;       //netty Server的一些配置文件
+    private final ServerConfig nettyServerConfig;       //netty Server的一些配置文件
     private RegistryServerConfig registryServerConfig;       //注册中心的配置文件
-    private NettyRemotingServer remotingServer;  	         //注册中心的netty server端
+    private Server remotingServer;  	         //注册中心的netty server端
     private RegistryConsumerManager consumerManager;         //注册中心消费侧的管理逻辑控制类
     private RegistryProviderManager providerManager;         //注册中心服务提供者的管理逻辑控制类
     private ExecutorService remotingExecutor;                //执行器
@@ -54,7 +54,7 @@ public class DefaultRegistryServer implements RegistryServer {
      * @param nettyServerConfig 注册中心的netty的配置文件 至少需要配置listenPort
      * @param nettyClientConfig 注册中心连接Monitor端的netty配置文件，至少需要配置defaultAddress值 这边monitor是单实例，所以address一个就好
      */
-    public DefaultRegistryServer(NettyServerConfig nettyServerConfig,RegistryServerConfig registryServerConfig) {
+    public DefaultRegistryServer(ServerConfig nettyServerConfig,RegistryServerConfig registryServerConfig) {
         this.nettyServerConfig = nettyServerConfig;
         this.registryServerConfig = registryServerConfig;
         consumerManager = new RegistryConsumerManager(this);
@@ -64,10 +64,10 @@ public class DefaultRegistryServer implements RegistryServer {
 
     private void initialize() {
 
-        this.remotingServer = new NettyRemotingServer(this.nettyServerConfig);
+        this.remotingServer = new Server(this.nettyServerConfig);
 
         this.remotingExecutor =
-                Executors.newFixedThreadPool(nettyServerConfig.getServerWorkerThreads(), new NamedThreadFactory("RegistryCenterExecutorThread_"));
+                Executors.newFixedThreadPool(nettyServerConfig.getWorkerThreads(), new NamedThreadFactory("RegistryCenterExecutorThread_"));
 
         this.remotingChannelInactiveExecutor =
                 Executors.newFixedThreadPool(nettyServerConfig.getChannelInactiveHandlerThreads(), new NamedThreadFactory("RegistryCenterChannelInActiveExecutorThread_"));
@@ -146,11 +146,11 @@ public class DefaultRegistryServer implements RegistryServer {
         return providerManager;
     }
 
-    public NettyRemotingServer getRemotingServer() {
+    public Server getRemotingServer() {
         return remotingServer;
     }
 
-    public void setRemotingServer(NettyRemotingServer remotingServer) {
+    public void setRemotingServer(Server remotingServer) {
         this.remotingServer = remotingServer;
     }
 

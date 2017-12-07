@@ -1,8 +1,8 @@
 package com.zero.easyrpc.example.serializer;
 
-import com.zero.easyrpc.example.netty.TestCommonCustomBody;
+import com.zero.easyrpc.example.netty.TestContentBody;
 
-import static com.zero.easyrpc.common.serialization.SerializerHolder.serializerImpl;
+import static com.zero.easyrpc.common.serialization.SerializerFactory.serializerImpl;
 
 /**
  * 
@@ -31,11 +31,11 @@ public class SerializerTest {
 		long beginTime = System.currentTimeMillis();
 		
 		for(int i = 0;i < 100000;i++){
-			TestCommonCustomBody.ComplexTestObj complexTestObj = new TestCommonCustomBody.ComplexTestObj("attr1", 2);
-			TestCommonCustomBody commonCustomHeader = new TestCommonCustomBody(1, "test",complexTestObj);
+			TestContentBody.ComplexTestObj complexTestObj = new TestContentBody.ComplexTestObj("attr1", 2);
+			TestContentBody commonCustomHeader = new TestContentBody(1, "test",complexTestObj);
 			byte[] bytes = serializerImpl().writeObject(commonCustomHeader);
 			
-			TestCommonCustomBody body = serializerImpl().readObject(bytes, TestCommonCustomBody.class);
+			TestContentBody body = serializerImpl().readObject(bytes, TestContentBody.class);
 		}
 		
 		long endTime = System.currentTimeMillis();

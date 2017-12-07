@@ -1,8 +1,8 @@
 package com.zero.easyrpc.monitor;
 
 import com.zero.easyrpc.common.rpc.MetricsReporter;
-import com.zero.easyrpc.transport.netty.NettyRemotingServer;
-import com.zero.easyrpc.transport.netty.NettyServerConfig;
+import com.zero.easyrpc.netty4.Server;
+import com.zero.easyrpc.netty4.ServerConfig;
 import io.netty.channel.Channel;
 import io.netty.util.internal.ConcurrentSet;
 
@@ -45,8 +45,8 @@ public class DefaultMonitor implements MonitorNode {
 	private static final Logger logger = LoggerFactory.getLogger(DefaultMonitor.class);
 
 	private MonitorConfig monitorConfig;
-	private NettyServerConfig nettyServerConfig;
-	private NettyRemotingServer nettyRemotingServer;
+	private ServerConfig nettyServerConfig;
+	private Server nettyRemotingServer;
 	private ExecutorService remotingExecutor;
 	private ExecutorService remotingChannelInactiveExecutor;
 
@@ -59,7 +59,7 @@ public class DefaultMonitor implements MonitorNode {
 	// //定时任务
 	private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("monitor-timer"));
 
-	public DefaultMonitor(NettyServerConfig nettyServerConfig, MonitorConfig monitorConfig) {
+	public DefaultMonitor(ServerConfig nettyServerConfig, MonitorConfig monitorConfig) {
 		this.nettyServerConfig = nettyServerConfig;
 		this.monitorConfig = monitorConfig;
 		initialize();
@@ -67,9 +67,9 @@ public class DefaultMonitor implements MonitorNode {
 
 	private void initialize() {
 
-		this.nettyRemotingServer = new NettyRemotingServer(nettyServerConfig);
+		this.nettyRemotingServer = new Server(nettyServerConfig);
 
-		this.remotingExecutor = Executors.newFixedThreadPool(nettyServerConfig.getServerWorkerThreads(), new NamedThreadFactory("MonitorExecutorThread_"));
+		this.remotingExecutor = Executors.newFixedThreadPool(nettyServerConfig.getWorkerThreads(), new NamedThreadFactory("MonitorExecutorThread_"));
 
 		this.remotingChannelInactiveExecutor = Executors.newFixedThreadPool(nettyServerConfig.getChannelInactiveHandlerThreads(), new NamedThreadFactory(
 				"MonitorChannelInActiveExecutorThread_"));

@@ -1,15 +1,15 @@
 package com.zero.easyrpc.example.netty;
 
 import com.zero.easyrpc.common.protocal.Protocol;
-import com.zero.easyrpc.transport.model.NettyRequestProcessor;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
-import com.zero.easyrpc.transport.netty.NettyRemotingServer;
-import com.zero.easyrpc.transport.netty.NettyServerConfig;
+import com.zero.easyrpc.netty4.model.RequestProcessor;
+import com.zero.easyrpc.netty4.Transporter;
+import com.zero.easyrpc.netty4.Server;
+import com.zero.easyrpc.netty4.ServerConfig;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.util.concurrent.Executors;
 
-import static com.zero.easyrpc.common.serialization.SerializerHolder.serializerImpl;
+import static com.zero.easyrpc.common.serialization.SerializerFactory.serializerImpl;
 
 /**
  * Created by jianjia1 on 17/12/04.
@@ -19,15 +19,15 @@ public class NettyServerTest {
 
     public static void main(String[] args) {
 
-        NettyServerConfig config = new NettyServerConfig();
+        ServerConfig config = new ServerConfig();
         config.setListenPort(18001);
-        NettyRemotingServer server = new NettyRemotingServer(config);
-        server.registerProecessor(TEST, new NettyRequestProcessor() {
+        Server server = new Server(config);
+        server.registerProecessor(TEST, new RequestProcessor() {
             @Override
-            public RemotingTransporter processRequest(ChannelHandlerContext ctx, RemotingTransporter transporter) throws Exception {
-                transporter.setCustomHeader(serializerImpl().readObject(transporter.bytes(), TestCommonCustomBody.class));
+            public Transporter processRequest(ChannelHandlerContext ctx, Transporter transporter) throws Exception {
+                transporter.setContent(serializerImpl().readObject(transporter.getBytes(), TestContentBody.class));
                 System.out.println(transporter);
-                transporter.setTransporterType(Protocol.RESPONSE_REMOTING);
+                transporter.setType(Protocol.RESPONSE);
                 return transporter;
             }
         }, Executors.newCachedThreadPool());

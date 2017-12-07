@@ -2,7 +2,7 @@ package com.zero.easyrpc.registry.base;
 
 import com.zero.easyrpc.common.exception.RemotingSendRequestException;
 import com.zero.easyrpc.common.exception.RemotingTimeoutException;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
+import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.Channel;
 
 /**
@@ -21,6 +21,6 @@ public interface RegistryProviderServer {
      * @throws RemotingTimeoutException
      * @throws RemotingSendRequestException
      */
-    RemotingTransporter handlerRegister(RemotingTransporter remotingTransporter,Channel channel) throws RemotingSendRequestException, RemotingTimeoutException, InterruptedException;
+    Transporter handlerRegister(Transporter remotingTransporter,Channel channel) throws RemotingSendRequestException, RemotingTimeoutException, InterruptedException;
 }
 

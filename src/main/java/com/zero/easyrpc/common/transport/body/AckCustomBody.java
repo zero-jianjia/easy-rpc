@@ -6,7 +6,7 @@ import com.zero.easyrpc.common.exception.RemotingCommmonCustomException;
  * ack信息
  * Created by jianjia1 on 17/12/04.
  */
-public class AckCustomBody implements CommonCustomBody {
+public class AckCustomBody implements ContentBody {
 
     //request请求id
     private long requestId;

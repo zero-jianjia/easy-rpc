@@ -4,7 +4,7 @@ import com.zero.easyrpc.common.rpc.MetricsReporter;
 import com.zero.easyrpc.common.rpc.RegisterMeta;
 import com.zero.easyrpc.monitor.DefaultMonitor;
 import com.zero.easyrpc.monitor.MonitorConfig;
-import com.zero.easyrpc.transport.netty.NettyServerConfig;
+import com.zero.easyrpc.netty4.ServerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +22,7 @@ public class MonitorTest {
 		t.setDaemon(true);
 		t.start();
 
-		NettyServerConfig config = new NettyServerConfig();
+		ServerConfig config = new ServerConfig();
 		MonitorConfig monitorConfig = new MonitorConfig();
 		// 注册中心的端口号
 		config.setListenPort(19010);

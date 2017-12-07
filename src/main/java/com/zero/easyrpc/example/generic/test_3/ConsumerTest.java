@@ -6,16 +6,16 @@ import com.zero.easyrpc.client.consumer.ConsumerClient;
 import com.zero.easyrpc.client.consumer.ConsumerConfig;
 import com.zero.easyrpc.client.consumer.proxy.ProxyFactory;
 import com.zero.easyrpc.common.exception.NoServiceException;
-import com.zero.easyrpc.transport.netty.NettyClientConfig;
+import com.zero.easyrpc.netty4.ClientConfig;
 
 public class ConsumerTest {
 	
 	public static void main(String[] args) throws Exception  {
 		
-		NettyClientConfig registryNettyClientConfig = new NettyClientConfig();
+		ClientConfig registryNettyClientConfig = new ClientConfig();
 		registryNettyClientConfig.setDefaultAddress("127.0.0.1:18010");
 
-		NettyClientConfig provideClientConfig = new NettyClientConfig();
+		ClientConfig provideClientConfig = new ClientConfig();
 
 		ConsumerClient client = new ConsumerClient(registryNettyClientConfig, provideClientConfig, new ConsumerConfig());
 

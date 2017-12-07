@@ -1,7 +1,6 @@
 package com.zero.easyrpc.example.compress;
 
-import com.zero.easyrpc.common.serialization.SerializerHolder;
-import io.netty.handler.codec.compression.Snappy;
+import com.zero.easyrpc.common.serialization.SerializerFactory;
 
 import java.io.IOException;
 
@@ -31,12 +30,12 @@ public class GoogleSnappyTest2 {
 		compressPojo.setF("正在超市里面购物正在超市里面购物audhfiwsolsjdhsjuskcsdfsafdsdf");
 		compressPojo.setG("少梅是赵默笙的大学同学，成名之后少梅改名为箫筱，箫筱与赵默笙业务合作故意提出停止合audhfiwsolsjdhsjuskcsdfsafdsdf");
 		compressPojo.setH("多公司，张主编心知就算她不主动控告箫筱，箫筱也会主动控告杂志社。正如张主编audhfiwsolsjdhsjuskcsdfsafdsdf");
-		byte[] bytes = SerializerHolder.serializerImpl().writeObject(compressPojo);
+		byte[] bytes = SerializerFactory.serializerImpl().writeObject(compressPojo);
 		System.out.println(bytes.length);
 //		byte[] compressBytes = Snappy.compress(bytes);
 //		System.out.println(compressBytes.length);
 //		byte[] uncompressBytes = Snappy.uncompress(compressBytes);
-//		CompressPojo unCompressPojo = SerializerHolder.serializerImpl().readObject(uncompressBytes, CompressPojo.class);
+//		CompressPojo unCompressPojo = SerializerFactory.serializerImpl().readObject(uncompressBytes, CompressPojo.class);
 		
 //		System.out.println(unCompressPojo.toString());
 		

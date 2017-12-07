@@ -1,9 +1,9 @@
 package com.zero.easyrpc.example.netty;
 
 import com.zero.easyrpc.common.exception.RemotingException;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
-import com.zero.easyrpc.transport.netty.NettyClientConfig;
-import com.zero.easyrpc.transport.netty.NettyRemotingClient;
+import com.zero.easyrpc.netty4.Transporter;
+import com.zero.easyrpc.netty4.ClientConfig;
+import com.zero.easyrpc.netty4.Client;
 
 /**
  * Created by jianjia1 on 17/12/04.
@@ -12,15 +12,15 @@ public class NettyClientTest {
     public static final byte TEST = -1;
 
     public static void main(String[] args) throws InterruptedException, RemotingException {
-        NettyClientConfig nettyClientConfig = new NettyClientConfig();
-        NettyRemotingClient client = new NettyRemotingClient(nettyClientConfig);
+        ClientConfig nettyClientConfig = new ClientConfig();
+        Client client = new Client(nettyClientConfig);
         client.start();
 
-        TestCommonCustomBody.ComplexTestObj complexTestObj = new TestCommonCustomBody.ComplexTestObj("attr1", 2);
-        TestCommonCustomBody commonCustomHeader = new TestCommonCustomBody(1, "test",complexTestObj);
+        TestContentBody.ComplexTestObj complexTestObj = new TestContentBody.ComplexTestObj("attr1", 2);
+        TestContentBody commonCustomHeader = new TestContentBody(1, "test",complexTestObj);
 
-        RemotingTransporter remotingTransporter = RemotingTransporter.createRequestTransporter(TEST, commonCustomHeader);
-        RemotingTransporter request = client.invokeSync("127.0.0.1:18001", remotingTransporter, 3000);
+        Transporter remotingTransporter = Transporter.createRequestTransporter(TEST, commonCustomHeader);
+        Transporter request = client.invokeSync("127.0.0.1:18001", remotingTransporter, 3000);
         System.out.println(request);
     }
 

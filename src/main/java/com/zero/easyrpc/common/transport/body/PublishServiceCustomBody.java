@@ -6,7 +6,7 @@ import com.zero.easyrpc.common.exception.RemotingCommmonCustomException;
  * provider端向Registry注册中心发送的注册服务信息
  * Created by jianjia1 on 17/12/04.
  */
-public class PublishServiceCustomBody implements CommonCustomBody {
+public class PublishServiceCustomBody implements ContentBody {
 
 
     private String host;				    // 服务的地址

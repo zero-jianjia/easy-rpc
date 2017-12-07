@@ -4,7 +4,7 @@ import com.zero.easyrpc.common.exception.RemotingSendRequestException;
 import com.zero.easyrpc.common.exception.RemotingTimeoutException;
 import com.zero.easyrpc.common.protocal.Protocol;
 import com.zero.easyrpc.common.transport.body.SubscribeRequestCustomBody;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
+import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,11 +46,11 @@ public class DefaultConsumerRegistry {
             SubscribeRequestCustomBody body = new SubscribeRequestCustomBody();
             body.setServiceName(serviceName);
 
-            RemotingTransporter remotingTransporter = RemotingTransporter.createRequestTransporter(Protocol.SUBSCRIBE_SERVICE, body);
+            Transporter remotingTransporter = Transporter.createRequestTransporter(Protocol.SUBSCRIBE_SERVICE, body);
             try {
 
-                RemotingTransporter request = sendKernelSubscribeInfo(this.defaultConsumer.getRegistyChannel(), remotingTransporter, timeout);
-                RemotingTransporter ackTransporter = this.defaultConsumer.getConsumerManager().handlerSubcribeResult(request,
+                Transporter request = sendKernelSubscribeInfo(this.defaultConsumer.getRegistyChannel(), remotingTransporter, timeout);
+                Transporter ackTransporter = this.defaultConsumer.getConsumerManager().handlerSubcribeResult(request,
                         this.defaultConsumer.getRegistyChannel());
                 this.defaultConsumer.getRegistyChannel().writeAndFlush(ackTransporter);
             } catch (Exception e) {
@@ -64,7 +64,7 @@ public class DefaultConsumerRegistry {
 
     }
 
-    private RemotingTransporter sendKernelSubscribeInfo(Channel registyChannel, RemotingTransporter remotingTransporter, long timeout)
+    private Transporter sendKernelSubscribeInfo(Channel registyChannel, Transporter remotingTransporter, long timeout)
             throws RemotingTimeoutException, RemotingSendRequestException, InterruptedException {
         return this.defaultConsumer.getRegistryNettyRemotingClient().invokeSyncImpl(this.defaultConsumer.getRegistyChannel(), remotingTransporter, timeout);
     }

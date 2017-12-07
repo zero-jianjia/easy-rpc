@@ -9,7 +9,7 @@ import static com.zero.easyrpc.common.utils.Status.OK;
 /**
  * Created by jianjia1 on 17/12/04.
  */
-public class ResponseCustomBody implements CommonCustomBody {
+public class ResponseCustomBody implements ContentBody {
 
     private static final Logger logger = LoggerFactory.getLogger(ResponseCustomBody.class);
 

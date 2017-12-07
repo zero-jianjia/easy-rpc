@@ -1,8 +1,8 @@
 package com.zero.easyrpc.registry.base;
 
-import com.zero.easyrpc.transport.ConnectionUtils;
-import com.zero.easyrpc.transport.model.NettyRequestProcessor;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
+import com.zero.easyrpc.netty4.util.ConnectionUtils;
+import com.zero.easyrpc.netty4.model.RequestProcessor;
+import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +13,7 @@ import static com.zero.easyrpc.common.protocal.Protocol.*;
  * 注册中心的处理转换器
  * Created by jianjia1 on 17/12/07.
  */
-public class DefaultRegistryProcessor implements NettyRequestProcessor {
+public class DefaultRegistryProcessor implements RequestProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultRegistryProcessor.class);
 
@@ -24,16 +24,16 @@ public class DefaultRegistryProcessor implements NettyRequestProcessor {
     }
 
     @Override
-    public RemotingTransporter processRequest(ChannelHandlerContext ctx, RemotingTransporter request) throws Exception {
+    public Transporter processRequest(ChannelHandlerContext ctx, Transporter request) throws Exception {
 
         if (logger.isDebugEnabled()) {
             logger.debug("receive request, {} {} {}",//
-                    request.getCode(), //
+                    request.getSign(), //
                     ConnectionUtils.parseChannelRemoteAddr(ctx.channel()), //
                     request);
         }
 
-        switch (request.getCode()) {
+        switch (request.getSign()) {
 
             case PUBLISH_SERVICE: // 处理服务提供者provider推送的服务信息
                 return this.defaultRegistryServer.getProviderManager().handlerRegister(request, ctx.channel()); // 要保持幂等性，同一个实例重复发布同一个服务的时候对于注册中心来说是无影响的

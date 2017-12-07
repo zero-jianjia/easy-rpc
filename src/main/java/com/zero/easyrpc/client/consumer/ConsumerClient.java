@@ -7,14 +7,14 @@ import com.zero.easyrpc.common.protocal.Protocol;
 import com.zero.easyrpc.common.transport.body.RequestCustomBody;
 import com.zero.easyrpc.common.transport.body.ResponseCustomBody;
 import com.zero.easyrpc.common.utils.ChannelGroup;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
-import com.zero.easyrpc.transport.netty.NettyClientConfig;
+import com.zero.easyrpc.netty4.Transporter;
+import com.zero.easyrpc.netty4.ClientConfig;
 import io.netty.channel.Channel;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static com.zero.easyrpc.common.serialization.SerializerHolder.serializerImpl;
+import static com.zero.easyrpc.common.serialization.SerializerFactory.serializerImpl;
 
 /**
  * Created by jianjia1 on 17/12/07.
@@ -25,18 +25,18 @@ public class ConsumerClient extends DefaultConsumer {
     public static final long DEFAULT_TIMEOUT = 3 * 1000l;
 
     public ConsumerClient() {
-        this(null, new NettyClientConfig(), new ConsumerConfig());
+        this(null, new ClientConfig(), new ConsumerConfig());
     }
 
     public ConsumerClient(ConsumerConfig consumerConfig) {
-        this(null, new NettyClientConfig(), consumerConfig);
+        this(null, new ClientConfig(), consumerConfig);
     }
 
-    public ConsumerClient(NettyClientConfig providerClientConfig, ConsumerConfig consumerConfig) {
+    public ConsumerClient(ClientConfig providerClientConfig, ConsumerConfig consumerConfig) {
         this(null, providerClientConfig, consumerConfig);
     }
 
-    public ConsumerClient(NettyClientConfig registryClientConfig, NettyClientConfig providerClientConfig, ConsumerConfig consumerConfig) {
+    public ConsumerClient(ClientConfig registryClientConfig, ClientConfig providerClientConfig, ConsumerConfig consumerConfig) {
         super(registryClientConfig, providerClientConfig, consumerConfig);
     }
 
@@ -60,14 +60,14 @@ public class ConsumerClient extends DefaultConsumer {
         RequestCustomBody body = new RequestCustomBody();
         body.setArgs(args);
         body.setServiceName(serviceName);
-        RemotingTransporter request = RemotingTransporter.createRequestTransporter(Protocol.RPC_REQUEST, body);
-        RemotingTransporter response = sendRpcRequestToProvider(channelGroup.next(),request,3000l);
-        ResponseCustomBody customBody = serializerImpl().readObject(response.bytes(), ResponseCustomBody.class);
+        Transporter request = Transporter.createRequestTransporter(Protocol.RPC_REQUEST, body);
+        Transporter response = sendRpcRequestToProvider(channelGroup.next(),request,3000l);
+        ResponseCustomBody customBody = serializerImpl().readObject(response.getBytes(), ResponseCustomBody.class);
         return customBody.getResultWrapper().getResult();
     }
 
     @Override
-    public RemotingTransporter sendRpcRequestToProvider(Channel channel, RemotingTransporter request,long timeout) throws RemotingTimeoutException, RemotingSendRequestException, InterruptedException {
+    public Transporter sendRpcRequestToProvider(Channel channel, Transporter request,long timeout) throws RemotingTimeoutException, RemotingSendRequestException, InterruptedException {
         return super.providerNettyRemotingClient.invokeSyncImpl(channel, request, timeout);
     }
 

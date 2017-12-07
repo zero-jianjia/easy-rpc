@@ -10,9 +10,9 @@ import com.zero.easyrpc.common.rpc.RegisterMeta;
 import com.zero.easyrpc.common.rpc.ServiceReviewState;
 import com.zero.easyrpc.common.transport.body.*;
 import com.zero.easyrpc.common.utils.PersistUtils;
+import com.zero.easyrpc.netty4.Transporter;
 import com.zero.easyrpc.registry.model.RegistryPersistRecord;
-import com.zero.easyrpc.transport.ConnectionUtils;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
+import com.zero.easyrpc.netty4.util.ConnectionUtils;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
@@ -25,7 +25,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import static com.zero.easyrpc.common.serialization.SerializerHolder.serializerImpl;
+import static com.zero.easyrpc.common.serialization.SerializerFactory.serializerImpl;
 
 
 /**
@@ -58,23 +58,23 @@ public class RegistryProviderManager implements RegistryProviderServer {
         this.defaultRegistryServer = defaultRegistryServer;
     }
 
-    public RemotingTransporter handleManager(RemotingTransporter request, Channel channel) throws RemotingSendRequestException, RemotingTimeoutException,
+    public Transporter handleManager(Transporter request, Channel channel) throws RemotingSendRequestException, RemotingTimeoutException,
             InterruptedException {
 
-        ManagerServiceCustomBody managerServiceCustomBody = serializerImpl().readObject(request.bytes(), ManagerServiceCustomBody.class);
+        ManagerServiceCustomBody managerServiceCustomBody = serializerImpl().readObject(request.getBytes(), ManagerServiceCustomBody.class);
 
         switch (managerServiceCustomBody.getManagerServiceRequestType()) {
             case REVIEW:
-                return handleReview(managerServiceCustomBody.getSerivceName(), managerServiceCustomBody.getAddress(), request.getOpaque(),
+                return handleReview(managerServiceCustomBody.getSerivceName(), managerServiceCustomBody.getAddress(), request.getRequestId(),
                         managerServiceCustomBody.getServiceReviewState());
             case DEGRADE:
                 return handleDegradeService(request, channel);
             case MODIFY_WEIGHT:
-                return handleModifyWeight(request.getOpaque(), managerServiceCustomBody);
+                return handleModifyWeight(request.getRequestId(), managerServiceCustomBody);
             case MODIFY_LOADBALANCE:
-                return handleModifyLoadBalance(request.getOpaque(), managerServiceCustomBody);
+                return handleModifyLoadBalance(request.getRequestId(), managerServiceCustomBody);
             case METRICS:
-                return handleMetricsService(managerServiceCustomBody.getSerivceName(), request.getOpaque());
+                return handleMetricsService(managerServiceCustomBody.getSerivceName(), request.getRequestId());
             default:
                 break;
         }
@@ -89,16 +89,16 @@ public class RegistryProviderManager implements RegistryProviderServer {
      * @throws RemotingSendRequestException
      */
     @Override
-    public RemotingTransporter handlerRegister(RemotingTransporter remotingTransporter, Channel channel) throws RemotingSendRequestException,
+    public Transporter handlerRegister(Transporter remotingTransporter, Channel channel) throws RemotingSendRequestException,
             RemotingTimeoutException, InterruptedException {
 
         // 准备好ack信息返回个provider，悲观主义，默认返回失败ack，要求provider重新发送请求
-        AckCustomBody ackCustomBody = new AckCustomBody(remotingTransporter.getOpaque(), false);
-        RemotingTransporter responseTransporter = RemotingTransporter.createResponseTransporter(Protocol.ACK, ackCustomBody,
-                remotingTransporter.getOpaque());
+        AckCustomBody ackCustomBody = new AckCustomBody(remotingTransporter.getRequestId(), false);
+        Transporter responseTransporter = Transporter.createResponseTransporter(Protocol.ACK, ackCustomBody,
+                remotingTransporter.getRequestId());
 
         // 接收到主体信息
-        PublishServiceCustomBody publishServiceCustomBody = serializerImpl().readObject(remotingTransporter.bytes(), PublishServiceCustomBody.class);
+        PublishServiceCustomBody publishServiceCustomBody = serializerImpl().readObject(remotingTransporter.getBytes(), PublishServiceCustomBody.class);
 
         RegisterMeta meta = RegisterMeta.createRegiserMeta(publishServiceCustomBody,channel);
 
@@ -196,10 +196,10 @@ public class RegistryProviderManager implements RegistryProviderServer {
         return false;
     }
 
-    public RemotingTransporter handleMetricsService(String metricsServiceName, long requestId) {
+    public Transporter handleMetricsService(String metricsServiceName, long requestId) {
 
         MetricsCustomBody responseBody = new MetricsCustomBody();
-        RemotingTransporter remotingTransporter = RemotingTransporter.createResponseTransporter(Protocol.MANAGER_SERVICE, responseBody, requestId);
+        Transporter remotingTransporter = Transporter.createResponseTransporter(Protocol.MANAGER_SERVICE, responseBody, requestId);
         List<ServiceMetrics> serviceMetricses = new ArrayList<ServiceMetrics>();
         // 统计全部
         if (metricsServiceName == null) {
@@ -228,10 +228,10 @@ public class RegistryProviderManager implements RegistryProviderServer {
      * @param managerServiceCustomBody
      * @return
      */
-    private RemotingTransporter handleModifyLoadBalance(long opaque, ManagerServiceCustomBody managerServiceCustomBody) {
+    private Transporter handleModifyLoadBalance(long opaque, ManagerServiceCustomBody managerServiceCustomBody) {
 
         AckCustomBody ackCustomBody = new AckCustomBody(opaque, false);
-        RemotingTransporter responseTransporter = RemotingTransporter.createResponseTransporter(Protocol.ACK, ackCustomBody, opaque);
+        Transporter responseTransporter = Transporter.createResponseTransporter(Protocol.ACK, ackCustomBody, opaque);
 
         String serviceName = managerServiceCustomBody.getSerivceName();
         LoadBalanceStrategy balanceStrategy = managerServiceCustomBody.getLoadBalanceStrategy();
@@ -264,12 +264,12 @@ public class RegistryProviderManager implements RegistryProviderServer {
      * @throws RemotingTimeoutException
      * @throws RemotingSendRequestException
      */
-    private RemotingTransporter handleModifyWeight(long opaque, ManagerServiceCustomBody managerServiceCustomBody) throws RemotingSendRequestException,
+    private Transporter handleModifyWeight(long opaque, ManagerServiceCustomBody managerServiceCustomBody) throws RemotingSendRequestException,
             RemotingTimeoutException, InterruptedException {
 
         // 准备好ack信息返回个provider，悲观主义，默认返回失败ack，要求provider重新发送请求
         AckCustomBody ackCustomBody = new AckCustomBody(opaque, false);
-        RemotingTransporter responseTransporter = RemotingTransporter.createResponseTransporter(Protocol.ACK, ackCustomBody, opaque);
+        Transporter responseTransporter = Transporter.createResponseTransporter(Protocol.ACK, ackCustomBody, opaque);
 
         String serviceName = managerServiceCustomBody.getSerivceName(); // 服务名
         RegisterMeta.Address address = managerServiceCustomBody.getAddress(); // 地址
@@ -306,15 +306,15 @@ public class RegistryProviderManager implements RegistryProviderServer {
      * @throws RemotingTimeoutException
      * @throws RemotingSendRequestException
      */
-    public RemotingTransporter handlerRegisterCancel(RemotingTransporter request, Channel channel) throws RemotingSendRequestException,
+    public Transporter handlerRegisterCancel(Transporter request, Channel channel) throws RemotingSendRequestException,
             RemotingTimeoutException, InterruptedException {
 
         // 准备好ack信息返回个provider，悲观主义，默认返回失败ack，要求provider重新发送请求
-        AckCustomBody ackCustomBody = new AckCustomBody(request.getOpaque(), false);
-        RemotingTransporter responseTransporter = RemotingTransporter.createResponseTransporter(Protocol.ACK, ackCustomBody, request.getOpaque());
+        AckCustomBody ackCustomBody = new AckCustomBody(request.getRequestId(), false);
+        Transporter responseTransporter = Transporter.createResponseTransporter(Protocol.ACK, ackCustomBody, request.getRequestId());
 
         // 接收到主体信息
-        PublishServiceCustomBody publishServiceCustomBody = serializerImpl().readObject(request.bytes(), PublishServiceCustomBody.class);
+        PublishServiceCustomBody publishServiceCustomBody = serializerImpl().readObject(request.getBytes(), PublishServiceCustomBody.class);
 
         RegisterMeta meta = RegisterMeta.createRegiserMeta(publishServiceCustomBody,channel);
 
@@ -334,13 +334,13 @@ public class RegistryProviderManager implements RegistryProviderServer {
      * @param channel
      * @return
      */
-    public RemotingTransporter handleSubscribe(RemotingTransporter request, Channel channel) {
+    public Transporter handleSubscribe(Transporter request, Channel channel) {
 
         SubcribeResultCustomBody subcribeResultCustomBody = new SubcribeResultCustomBody();
-        RemotingTransporter responseTransporter = RemotingTransporter.createResponseTransporter(Protocol.SUBCRIBE_RESULT, subcribeResultCustomBody,
-                request.getOpaque());
+        Transporter responseTransporter = Transporter.createResponseTransporter(Protocol.SUBCRIBE_RESULT, subcribeResultCustomBody,
+                request.getRequestId());
         // 接收到主体信息
-        SubscribeRequestCustomBody requestCustomBody = serializerImpl().readObject(request.bytes(), SubscribeRequestCustomBody.class);
+        SubscribeRequestCustomBody requestCustomBody = serializerImpl().readObject(request.getBytes(), SubscribeRequestCustomBody.class);
         String serviceName = requestCustomBody.getServiceName();
         // 将其降入到channel的group中去
         this.defaultRegistryServer.getConsumerManager().getSubscriberChannels().add(channel);
@@ -556,10 +556,10 @@ public class RegistryProviderManager implements RegistryProviderServer {
      * @throws RemotingTimeoutException
      * @throws RemotingSendRequestException
      */
-    private RemotingTransporter handleReview(String serviceName, RegisterMeta.Address address, long requestId, ServiceReviewState reviewState) throws RemotingSendRequestException, RemotingTimeoutException, InterruptedException {
+    private Transporter handleReview(String serviceName, RegisterMeta.Address address, long requestId, ServiceReviewState reviewState) throws RemotingSendRequestException, RemotingTimeoutException, InterruptedException {
 
         AckCustomBody ackCustomBody = new AckCustomBody(requestId, false);
-        RemotingTransporter remotingTransporter = RemotingTransporter.createResponseTransporter(Protocol.ACK, ackCustomBody, requestId);
+        Transporter remotingTransporter = Transporter.createResponseTransporter(Protocol.ACK, ackCustomBody, requestId);
 
         // 获取到这个服务的所有
         ConcurrentMap<RegisterMeta.Address, RegisterMeta> maps = this.getRegisterMeta(serviceName);
@@ -616,13 +616,13 @@ public class RegistryProviderManager implements RegistryProviderServer {
 
     }
 
-    private RemotingTransporter handleDegradeService(RemotingTransporter request, Channel channel) throws RemotingSendRequestException,
+    private Transporter handleDegradeService(Transporter request, Channel channel) throws RemotingSendRequestException,
             RemotingTimeoutException, InterruptedException {
 
-        AckCustomBody ackCustomBody = new AckCustomBody(request.getOpaque(), false);
-        RemotingTransporter remotingTransporter = RemotingTransporter.createResponseTransporter(Protocol.ACK, ackCustomBody, request.getOpaque());
+        AckCustomBody ackCustomBody = new AckCustomBody(request.getRequestId(), false);
+        Transporter remotingTransporter = Transporter.createResponseTransporter(Protocol.ACK, ackCustomBody, request.getRequestId());
 
-        ManagerServiceCustomBody body = serializerImpl().readObject(request.bytes(), ManagerServiceCustomBody.class);
+        ManagerServiceCustomBody body = serializerImpl().readObject(request.getBytes(), ManagerServiceCustomBody.class);
 
         String serviceName = body.getSerivceName();
         ConcurrentMap< RegisterMeta.Address, RegisterMeta> maps = this.getRegisterMeta(serviceName);
@@ -650,8 +650,8 @@ public class RegistryProviderManager implements RegistryProviderServer {
         }else{
             Channel matchedProviderChannel = globalProviderChannelMetaMap.get(address);
             if(matchedProviderChannel != null){
-                request.setCode(Protocol.DEGRADE_SERVICE);
-                request.setCustomHeader(body);
+                request.setSign(Protocol.DEGRADE_SERVICE);
+                request.setContent(body);
                 return defaultRegistryServer.getRemotingServer().invokeSync(matchedProviderChannel, request, 3000l);
             }else{
                 return remotingTransporter;

@@ -1,7 +1,7 @@
 package com.zero.easyrpc.client.provider;
 
 import com.zero.easyrpc.common.exception.RemotingException;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
+import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.Channel;
 
 /**
@@ -65,6 +65,6 @@ public interface Provider {
      * @param channel
      * @return
      */
-    void handlerRPCRequest(RemotingTransporter request, Channel channel);
+    void handlerRPCRequest(Transporter request, Channel channel);
 
 }

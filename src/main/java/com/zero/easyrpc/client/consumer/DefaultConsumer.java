@@ -6,9 +6,9 @@ import com.zero.easyrpc.common.utils.ChannelGroup;
 import com.zero.easyrpc.common.utils.JUnsafe;
 import com.zero.easyrpc.common.utils.NettyChannelGroup;
 import com.zero.easyrpc.common.utils.UnresolvedAddress;
-import com.zero.easyrpc.transport.ConnectionUtils;
-import com.zero.easyrpc.transport.netty.NettyClientConfig;
-import com.zero.easyrpc.transport.netty.NettyRemotingClient;
+import com.zero.easyrpc.netty4.Client;
+import com.zero.easyrpc.netty4.util.ConnectionUtils;
+import com.zero.easyrpc.netty4.ClientConfig;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -21,8 +21,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 /**
  * Created by jianjia1 on 17/12/07.
  */
@@ -30,16 +28,16 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultConsumer.class);
 
-    private NettyClientConfig registryClientConfig;
-    private NettyClientConfig providerClientConfig;
+    private ClientConfig registryClientConfig;
+    private ClientConfig providerClientConfig;
     private ConsumerConfig consumerConfig;
-    protected NettyRemotingClient registryNettyRemotingClient;
-    protected NettyRemotingClient providerNettyRemotingClient;
+    protected Client registryNettyRemotingClient;
+    protected Client providerNettyRemotingClient;
     private DefaultConsumerRegistry defaultConsumerRegistry;
     private ConsumerManager consumerManager;
     private Channel registyChannel;
 
-    public DefaultConsumer(NettyClientConfig registryClientConfig, NettyClientConfig providerClientConfig, ConsumerConfig consumerConfig) {
+    public DefaultConsumer(ClientConfig registryClientConfig, ClientConfig providerClientConfig, ConsumerConfig consumerConfig) {
         this.registryClientConfig = registryClientConfig;
         this.providerClientConfig = providerClientConfig;
         this.consumerConfig = consumerConfig;
@@ -52,12 +50,12 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
 
         //因为服务消费端可以直连provider，所以当传递过来的与注册中心连接的配置文件为空的时候，可以不初始化registryNettyRemotingClient
         if(null != this.registryClientConfig){
-            this.registryNettyRemotingClient = new NettyRemotingClient(this.registryClientConfig);
+            this.registryNettyRemotingClient = new Client(this.registryClientConfig);
             // 注册处理器
             this.registerProcessor();
         }
 
-        this.providerNettyRemotingClient = new NettyRemotingClient(this.providerClientConfig);
+        this.providerNettyRemotingClient = new Client(this.providerClientConfig);
 
     }
 
@@ -101,7 +99,7 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
 
                                     try {
                                         // 所有的consumer与provider之间的链接不进行短线重连操作
-                                        DefaultConsumer.this.getProviderNettyRemotingClient().setreconnect(false);
+                                        DefaultConsumer.this.getProviderNettyRemotingClient().setReconnect(false);
                                         DefaultConsumer.this.getProviderNettyRemotingClient().getBootstrap()
                                                 .connect(ConnectionUtils.string2SocketAddress(remoteHost + ":" + remotePort)).addListener(new ChannelFutureListener() {
 
@@ -220,7 +218,7 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
             getOrUpdateHealthyChannel();
         }
 
-        this.providerNettyRemotingClient.setreconnect(false);
+        this.providerNettyRemotingClient.setReconnect(false);
         this.providerNettyRemotingClient.start();
 
     }
@@ -277,11 +275,11 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
         }
     }
 
-    public NettyRemotingClient getRegistryNettyRemotingClient() {
+    public Client getRegistryNettyRemotingClient() {
         return registryNettyRemotingClient;
     }
 
-    public void setRegistryNettyRemotingClient(NettyRemotingClient registryNettyRemotingClient) {
+    public void setRegistryNettyRemotingClient(Client registryNettyRemotingClient) {
         this.registryNettyRemotingClient = registryNettyRemotingClient;
     }
 
@@ -301,11 +299,11 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
         this.consumerConfig = consumerConfig;
     }
 
-    public NettyClientConfig getRegistryClientConfig() {
+    public ClientConfig getRegistryClientConfig() {
         return registryClientConfig;
     }
 
-    public void setRegistryClientConfig(NettyClientConfig registryClientConfig) {
+    public void setRegistryClientConfig(ClientConfig registryClientConfig) {
         this.registryClientConfig = registryClientConfig;
     }
 
@@ -317,11 +315,11 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
         this.consumerManager = consumerManager;
     }
 
-    public NettyRemotingClient getProviderNettyRemotingClient() {
+    public Client getProviderNettyRemotingClient() {
         return providerNettyRemotingClient;
     }
 
-    public void setProviderNettyRemotingClient(NettyRemotingClient providerNettyRemotingClient) {
+    public void setProviderNettyRemotingClient(Client providerNettyRemotingClient) {
         this.providerNettyRemotingClient = providerNettyRemotingClient;
     }
 

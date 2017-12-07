@@ -5,7 +5,7 @@ import com.zero.easyrpc.common.exception.RemotingTimeoutException;
 import com.zero.easyrpc.common.loadbalance.LoadBalanceStrategy;
 import com.zero.easyrpc.common.utils.ChannelGroup;
 import com.zero.easyrpc.common.utils.UnresolvedAddress;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
+import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.Channel;
 
 /**
@@ -94,7 +94,7 @@ public interface Consumer {
      * @throws RemotingSendRequestException
      * @throws InterruptedException
      */
-    RemotingTransporter sendRpcRequestToProvider(Channel channel, RemotingTransporter request,long timeout) throws RemotingTimeoutException, RemotingSendRequestException, InterruptedException;
+    Transporter sendRpcRequestToProvider(Channel channel, Transporter request,long timeout) throws RemotingTimeoutException, RemotingSendRequestException, InterruptedException;
 
     /**
      * 当注册中心推送某个服务的负载均衡策略发送变化之后，需要变更的信息

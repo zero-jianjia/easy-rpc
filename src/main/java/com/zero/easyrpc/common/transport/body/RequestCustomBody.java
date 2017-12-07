@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Created by jianjia1 on 17/12/04.
  */
-public class RequestCustomBody implements CommonCustomBody {
+public class RequestCustomBody implements ContentBody {
 
     private static final AtomicLong invokeIdGenerator = new AtomicLong(0);
 

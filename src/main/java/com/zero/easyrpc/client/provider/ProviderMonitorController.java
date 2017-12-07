@@ -6,7 +6,7 @@ import com.zero.easyrpc.common.protocal.Protocol;
 import com.zero.easyrpc.common.rpc.MetricsReporter;
 import com.zero.easyrpc.common.transport.body.ProviderMetricsCustomBody;
 import com.zero.easyrpc.common.transport.body.PublishServiceCustomBody;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
+import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,7 +78,7 @@ public class ProviderMonitorController {
                 }
                 ProviderMetricsCustomBody body = new ProviderMetricsCustomBody();
                 body.setMetricsReporter(reporters);
-                RemotingTransporter remotingTransporter = RemotingTransporter.createRequestTransporter(Protocol.MERTRICS_SERVICE, body);
+                Transporter remotingTransporter = Transporter.createRequestTransporter(Protocol.MERTRICS_SERVICE, body);
                 Channel channel = defaultProvider.getMonitorChannel();
 
                 if (null != channel && channel.isActive() && channel.isWritable()) {

@@ -4,13 +4,13 @@ import com.zero.easyrpc.client.metrics.ServiceMeterManager;
 import com.zero.easyrpc.client.provider.flow.control.ServiceFlowControllerManager;
 import com.zero.easyrpc.client.provider.model.ServiceWrapper;
 import com.zero.easyrpc.common.protocal.Protocol;
-import com.zero.easyrpc.common.serialization.SerializerHolder;
+import com.zero.easyrpc.common.serialization.SerializerFactory;
 import com.zero.easyrpc.common.transport.body.RequestCustomBody;
 import com.zero.easyrpc.common.transport.body.ResponseCustomBody;
 import com.zero.easyrpc.common.utils.Pair;
 import com.zero.easyrpc.common.utils.Status;
 import com.zero.easyrpc.common.utils.SystemClock;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
+import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -22,7 +22,6 @@ import java.util.List;
 import static com.zero.easyrpc.common.utils.Reflects.fastInvoke;
 import static com.zero.easyrpc.common.utils.Reflects.findMatchingParameterTypes;
 import static com.zero.easyrpc.common.utils.Status.APP_FLOW_CONTROL;
-import static com.zero.easyrpc.common.utils.Status.BAD_REQUEST;
 import static com.zero.easyrpc.common.utils.Status.SERVICE_NOT_FOUND;
 
 /**
@@ -42,20 +41,20 @@ public class ProviderRPCController {
 
 
     //处理RPC请求
-    public void handlerRPCRequest(RemotingTransporter request, Channel channel) {
+    public void handlerRPCRequest(Transporter request, Channel channel) {
 
         String serviceName = null;
         RequestCustomBody body = null;
         int requestSize = 0;
 
         try {
-            byte[] bytes = request.bytes();
+            byte[] bytes = request.getBytes();
             requestSize = bytes.length;
-            request.bytes(null);
+            request.setBytes(null);
 
-            body = SerializerHolder.serializerImpl().readObject(bytes, RequestCustomBody.class);
+            body = SerializerFactory.serializerImpl().readObject(bytes, RequestCustomBody.class);
 
-            request.setCustomHeader(body);
+            request.setContent(body);
 
             serviceName = body.getServiceName();
 
@@ -97,7 +96,7 @@ public class ProviderRPCController {
      * @param serviceName
      * @param beginTime
      */
-    private void process(Pair<DefaultServiceProviderContainer.CurrentServiceState, ServiceWrapper> pair, final RemotingTransporter request, Channel channel,final String serviceName,final long beginTime) {
+    private void process(Pair<DefaultServiceProviderContainer.CurrentServiceState, ServiceWrapper> pair, final Transporter request, Channel channel,final String serviceName,final long beginTime) {
 
         Object invokeResult = null;
 
@@ -106,7 +105,7 @@ public class ProviderRPCController {
 
         Object targetCallObj = serviceWrapper.getServiceProvider();
 
-        Object[] args = ((RequestCustomBody)request.getCustomHeader()).getArgs();
+        Object[] args = ((RequestCustomBody)request.getContent()).getArgs();
 
         //判断服务是否已经被设定为自动降级，如果被设置为自动降级且有它自己的mock类的话，则将targetCallObj切换到mock方法上来
         if(currentServiceState.getHasDegrade().get() && serviceWrapper.getMockDegradeServiceProvider() != null){
@@ -124,7 +123,7 @@ public class ProviderRPCController {
         result.setResult(invokeResult);
         ResponseCustomBody body = new ResponseCustomBody(Status.OK.value(), result);
 
-        final RemotingTransporter response = RemotingTransporter.createResponseTransporter(Protocol.RPC_RESPONSE, body, request.getOpaque());
+        final Transporter response = Transporter.createResponseTransporter(Protocol.RPC_RESPONSE, body, request.getRequestId());
 
         channel.writeAndFlush(response).addListener(new ChannelFutureListener() {
 
@@ -143,7 +142,7 @@ public class ProviderRPCController {
 
     }
 
-    private void rejected(Status status, Channel channel, final RemotingTransporter request,String serviceName) {
+    private void rejected(Status status, Channel channel, final Transporter request,String serviceName) {
 
         if(null != serviceName){
             ServiceMeterManager.incrementFailTimes(serviceName);
@@ -153,7 +152,7 @@ public class ProviderRPCController {
             case BAD_REQUEST:
                 result.setError("bad request");
             case SERVICE_NOT_FOUND:
-                result.setError(((RequestCustomBody) request.getCustomHeader()).getServiceName() +" no service found");
+                result.setError(((RequestCustomBody) request.getContent()).getServiceName() +" no service found");
                 break;
             case APP_FLOW_CONTROL:
             case PROVIDER_FLOW_CONTROL:
@@ -166,8 +165,8 @@ public class ProviderRPCController {
         logger.warn("Service rejected: {}.", result.getError());
 
         ResponseCustomBody responseCustomBody = new ResponseCustomBody(status.value(), result);
-        final RemotingTransporter response = RemotingTransporter.createResponseTransporter(Protocol.RPC_RESPONSE, responseCustomBody,
-                request.getOpaque());
+        final Transporter response = Transporter.createResponseTransporter(Protocol.RPC_RESPONSE, responseCustomBody,
+                request.getRequestId());
 
         channel.writeAndFlush(response).addListener(new ChannelFutureListener() {
 

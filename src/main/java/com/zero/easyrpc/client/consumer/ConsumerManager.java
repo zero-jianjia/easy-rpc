@@ -5,7 +5,7 @@ import com.zero.easyrpc.common.protocal.Protocol;
 import com.zero.easyrpc.common.rpc.RegisterMeta;
 import com.zero.easyrpc.common.transport.body.AckCustomBody;
 import com.zero.easyrpc.common.transport.body.SubcribeResultCustomBody;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
+import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import static com.zero.easyrpc.common.serialization.SerializerHolder.serializerImpl;
+import static com.zero.easyrpc.common.serialization.SerializerFactory.serializerImpl;
 
 /**
  * 消费者端的一些逻辑处理
@@ -41,16 +41,16 @@ public class ConsumerManager {
      * @param channel
      * @return
      */
-    public RemotingTransporter handlerSubcribeResult(RemotingTransporter request, Channel channel) {
+    public Transporter handlerSubcribeResult(Transporter request, Channel channel) {
 
         if (logger.isDebugEnabled()) {
             logger.debug("handler subcribe result [{}] and channel [{}]", request, channel);
         }
 
-        AckCustomBody ackCustomBody = new AckCustomBody(request.getOpaque(), false);
-        RemotingTransporter responseTransporter = RemotingTransporter.createResponseTransporter(Protocol.ACK, ackCustomBody, request.getOpaque());
+        AckCustomBody ackCustomBody = new AckCustomBody(request.getRequestId(), false);
+        Transporter responseTransporter = Transporter.createResponseTransporter(Protocol.ACK, ackCustomBody, request.getRequestId());
 
-        SubcribeResultCustomBody subcribeResultCustomBody = serializerImpl().readObject(request.bytes(), SubcribeResultCustomBody.class);
+        SubcribeResultCustomBody subcribeResultCustomBody = serializerImpl().readObject(request.getBytes(), SubcribeResultCustomBody.class);
 
         String serviceName = null;
         if (subcribeResultCustomBody != null && subcribeResultCustomBody.getRegisterMeta() != null && !subcribeResultCustomBody.getRegisterMeta().isEmpty()) {
@@ -74,11 +74,11 @@ public class ConsumerManager {
      * @param channel
      * @return
      */
-    public RemotingTransporter handlerSubscribeResultCancel(RemotingTransporter request, Channel channel) {
-        AckCustomBody ackCustomBody = new AckCustomBody(request.getOpaque(), false);
-        RemotingTransporter responseTransporter = RemotingTransporter.createResponseTransporter(Protocol.ACK, ackCustomBody, request.getOpaque());
+    public Transporter handlerSubscribeResultCancel(Transporter request, Channel channel) {
+        AckCustomBody ackCustomBody = new AckCustomBody(request.getRequestId(), false);
+        Transporter responseTransporter = Transporter.createResponseTransporter(Protocol.ACK, ackCustomBody, request.getRequestId());
 
-        SubcribeResultCustomBody subcribeResultCustomBody = serializerImpl().readObject(request.bytes(), SubcribeResultCustomBody.class);
+        SubcribeResultCustomBody subcribeResultCustomBody = serializerImpl().readObject(request.getBytes(), SubcribeResultCustomBody.class);
 
         if (subcribeResultCustomBody != null && subcribeResultCustomBody.getRegisterMeta() != null && !subcribeResultCustomBody.getRegisterMeta().isEmpty()) {
 
@@ -96,16 +96,16 @@ public class ConsumerManager {
      * @param channel
      * @return
      */
-    public RemotingTransporter handlerServiceLoadBalance(RemotingTransporter request, Channel channel) {
+    public Transporter handlerServiceLoadBalance(Transporter request, Channel channel) {
 
         if (logger.isDebugEnabled()) {
             logger.debug("handler change loadBalance strategy [{}] and channel [{}]", request, channel);
         }
 
-        AckCustomBody ackCustomBody = new AckCustomBody(request.getOpaque(), false);
-        RemotingTransporter responseTransporter = RemotingTransporter.createResponseTransporter(Protocol.ACK, ackCustomBody, request.getOpaque());
+        AckCustomBody ackCustomBody = new AckCustomBody(request.getRequestId(), false);
+        Transporter responseTransporter = Transporter.createResponseTransporter(Protocol.ACK, ackCustomBody, request.getRequestId());
 
-        SubcribeResultCustomBody subcribeResultCustomBody = serializerImpl().readObject(request.bytes(), SubcribeResultCustomBody.class);
+        SubcribeResultCustomBody subcribeResultCustomBody = serializerImpl().readObject(request.getBytes(), SubcribeResultCustomBody.class);
 
         String serviceName = subcribeResultCustomBody.getServiceName();
 

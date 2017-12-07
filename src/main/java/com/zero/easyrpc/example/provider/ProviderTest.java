@@ -4,8 +4,8 @@ import com.zero.easyrpc.client.provider.DefaultProvider;
 import com.zero.easyrpc.common.exception.RemotingException;
 import com.zero.easyrpc.example.demo.ByeServiceImpl;
 import com.zero.easyrpc.example.demo.HelloSerivceImpl;
-import com.zero.easyrpc.transport.netty.NettyClientConfig;
-import com.zero.easyrpc.transport.netty.NettyServerConfig;
+import com.zero.easyrpc.netty4.ClientConfig;
+import com.zero.easyrpc.netty4.ServerConfig;
 
 /**
  * Created by jianjia1 on 17/12/07.
@@ -13,7 +13,7 @@ import com.zero.easyrpc.transport.netty.NettyServerConfig;
 public class ProviderTest {
     public static void main(String[] args) throws InterruptedException, RemotingException {
 
-        DefaultProvider defaultProvider = new DefaultProvider(new NettyClientConfig(), new NettyServerConfig());
+        DefaultProvider defaultProvider = new DefaultProvider(new ClientConfig(), new ServerConfig());
 
 
         defaultProvider.registryAddress("127.0.0.1:18010") //注册中心的地址

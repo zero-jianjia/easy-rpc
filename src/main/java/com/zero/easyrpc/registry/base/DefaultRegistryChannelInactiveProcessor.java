@@ -3,7 +3,7 @@ package com.zero.easyrpc.registry.base;
 import com.zero.easyrpc.common.exception.RemotingSendRequestException;
 import com.zero.easyrpc.common.exception.RemotingTimeoutException;
 import com.zero.easyrpc.common.rpc.RegisterMeta;
-import com.zero.easyrpc.transport.model.NettyChannelInactiveProcessor;
+import com.zero.easyrpc.netty4.model.ChannelInactiveProcessor;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.AttributeKey;
@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
  *  当provider发生异常的时候注册中心需要做的处理
  * Created by jianjia1 on 17/12/07.
  */
-public class DefaultRegistryChannelInactiveProcessor implements NettyChannelInactiveProcessor {
+public class DefaultRegistryChannelInactiveProcessor implements ChannelInactiveProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultRegistryChannelInactiveProcessor.class);
 

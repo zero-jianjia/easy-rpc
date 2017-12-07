@@ -2,7 +2,7 @@ package com.zero.easyrpc.monitor;
 
 import com.zero.easyrpc.common.rpc.MetricsReporter;
 import com.zero.easyrpc.common.rpc.RegisterMeta;
-import com.zero.easyrpc.transport.model.NettyChannelInactiveProcessor;
+import com.zero.easyrpc.netty4.model.ChannelInactiveProcessor;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.internal.ConcurrentSet;
 import org.slf4j.Logger;
@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentMap;
  * @time 2016年9月7日
  * @modifytime
  */
-public class DefaultMonitorChannelInactiveProcessor implements NettyChannelInactiveProcessor {
+public class DefaultMonitorChannelInactiveProcessor implements ChannelInactiveProcessor {
 
 	private static final Logger logger = LoggerFactory.getLogger(DefaultMonitorChannelInactiveProcessor.class);
 

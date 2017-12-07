@@ -7,7 +7,7 @@ import com.zero.easyrpc.client.provider.model.ServiceWrapper;
 import com.zero.easyrpc.common.exception.RpcWrapperException;
 import com.zero.easyrpc.common.protocal.Protocol;
 import com.zero.easyrpc.common.transport.body.PublishServiceCustomBody;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
+import com.zero.easyrpc.netty4.Transporter;
 import io.netty.util.internal.StringUtil;
 import net.bytebuddy.ByteBuddy;
 import org.slf4j.Logger;
@@ -44,9 +44,9 @@ public class LocalServerWrapperManager {
      * @param obj 暴露的方法的实例
      * @return
      */
-    public List<RemotingTransporter> wrapperRegisterInfo(int port, Object... obj) {
+    public List<Transporter> wrapperRegisterInfo(int port, Object... obj) {
 
-        List<RemotingTransporter> remotingTransporters = new ArrayList<RemotingTransporter>();
+        List<Transporter> remotingTransporters = new ArrayList<Transporter>();
 
         //基本判断，如果暴露的方法是null或者是0，则说明无需编织服务
         if (null != obj && obj.length > 0) {
@@ -74,7 +74,7 @@ public class LocalServerWrapperManager {
                         commonCustomHeader.setFlowController(serviceWrapper.isFlowController());
                         commonCustomHeader.setMaxCallCountInMinute(serviceWrapper.getMaxCallCountInMinute());
 
-                        RemotingTransporter remotingTransporter = RemotingTransporter.createRequestTransporter(Protocol.PUBLISH_SERVICE, commonCustomHeader);
+                        Transporter remotingTransporter = Transporter.createRequestTransporter(Protocol.PUBLISH_SERVICE, commonCustomHeader);
                         remotingTransporters.add(remotingTransporter);
                     }
                 }

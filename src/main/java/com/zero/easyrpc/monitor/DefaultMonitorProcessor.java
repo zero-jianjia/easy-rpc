@@ -8,9 +8,9 @@ import com.zero.easyrpc.common.rpc.RegisterMeta;
 import com.zero.easyrpc.common.transport.body.ManagerServiceCustomBody;
 import com.zero.easyrpc.common.transport.body.MetricsCustomBody;
 import com.zero.easyrpc.common.transport.body.ProviderMetricsCustomBody;
-import com.zero.easyrpc.transport.ConnectionUtils;
-import com.zero.easyrpc.transport.model.NettyRequestProcessor;
-import com.zero.easyrpc.transport.model.RemotingTransporter;
+import com.zero.easyrpc.netty4.util.ConnectionUtils;
+import com.zero.easyrpc.netty4.model.RequestProcessor;
+import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.internal.ConcurrentSet;
@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentMap;
 
 import static com.zero.easyrpc.common.protocal.Protocol.MANAGER_SERVICE;
 import static com.zero.easyrpc.common.protocal.Protocol.MERTRICS_SERVICE;
-import static com.zero.easyrpc.common.serialization.SerializerHolder.serializerImpl;
+import static com.zero.easyrpc.common.serialization.SerializerFactory.serializerImpl;
 
 /**
  * 
@@ -33,7 +33,7 @@ import static com.zero.easyrpc.common.serialization.SerializerHolder.serializerI
  * @time 2016年8月17日
  * @modifytime
  */
-public class DefaultMonitorProcessor implements NettyRequestProcessor {
+public class DefaultMonitorProcessor implements RequestProcessor {
 	
 	private static final Logger logger = LoggerFactory.getLogger(DefaultMonitorProcessor.class);
 	
@@ -45,16 +45,16 @@ public class DefaultMonitorProcessor implements NettyRequestProcessor {
 	}
 
 	@Override
-	public RemotingTransporter processRequest(ChannelHandlerContext ctx, RemotingTransporter request) throws Exception {
+	public Transporter processRequest(ChannelHandlerContext ctx, Transporter request) throws Exception {
 		
 		if (logger.isDebugEnabled()) {
 			logger.debug("receive request, {} {} {}",//
-                request.getCode(), //
+                request.getSign(), //
                 ConnectionUtils.parseChannelRemoteAddr(ctx.channel()), //
                 request);
         }
 		
-		switch (request.getCode()) {
+		switch (request.getSign()) {
 			  case MERTRICS_SERVICE: //因为服务提供者端是定时发送统计信息的，如果没有收到或者消费失败了，则丢弃，不做强制消费的ack判断要求provider重发
 				  return handlerMetricsService(request,ctx.channel());
 			  case MANAGER_SERVICE: 
@@ -63,12 +63,12 @@ public class DefaultMonitorProcessor implements NettyRequestProcessor {
 		return null;
 	}
 
-	private RemotingTransporter handlerManagerService(RemotingTransporter request, Channel channel) {
+	private Transporter handlerManagerService(Transporter request, Channel channel) {
 		
 		MetricsCustomBody metricsCustomBody = new MetricsCustomBody();
-		RemotingTransporter remotingTransporter = RemotingTransporter.createResponseTransporter(Protocol.MERTRICS_SERVICE, metricsCustomBody, request.getOpaque());
+		Transporter remotingTransporter = Transporter.createResponseTransporter(Protocol.MERTRICS_SERVICE, metricsCustomBody, request.getRequestId());
 		
-		ManagerServiceCustomBody body = serializerImpl().readObject(request.bytes(), ManagerServiceCustomBody.class);
+		ManagerServiceCustomBody body = serializerImpl().readObject(request.getBytes(), ManagerServiceCustomBody.class);
 		
 		if(body.getManagerServiceRequestType() == ManagerServiceRequestType.METRICS){
 			
@@ -163,10 +163,10 @@ public class DefaultMonitorProcessor implements NettyRequestProcessor {
 	 * @param channel
 	 * @return
 	 */
-	private RemotingTransporter handlerMetricsService(RemotingTransporter request, Channel channel) {
+	private Transporter handlerMetricsService(Transporter request, Channel channel) {
 		
 		//反序列化内容
-		ProviderMetricsCustomBody body = serializerImpl().readObject(request.bytes(),ProviderMetricsCustomBody.class);
+		ProviderMetricsCustomBody body = serializerImpl().readObject(request.getBytes(),ProviderMetricsCustomBody.class);
 		
 		if(body.getMetricsReporter() != null && !body.getMetricsReporter().isEmpty()){
 			

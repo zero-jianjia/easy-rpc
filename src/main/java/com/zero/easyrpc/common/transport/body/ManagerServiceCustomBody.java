@@ -10,7 +10,7 @@ import com.zero.easyrpc.common.rpc.ServiceReviewState;
  * 管理者发送给注册中心的修改服务的信息的主体信息
  * Created by jianjia1 on 17/12/04.
  */
-public class ManagerServiceCustomBody implements CommonCustomBody {
+public class ManagerServiceCustomBody implements ContentBody {
 
 
     private ManagerServiceRequestType managerServiceRequestType;//管理的类型

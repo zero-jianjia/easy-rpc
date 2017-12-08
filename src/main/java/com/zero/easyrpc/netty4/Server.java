@@ -8,9 +8,10 @@ import com.zero.easyrpc.common.utils.Pair;
 import com.zero.easyrpc.netty4.codec.TransporterDecoder;
 import com.zero.easyrpc.netty4.codec.TransporterEncoder;
 import com.zero.easyrpc.netty4.model.ChannelInactiveProcessor;
-import com.zero.easyrpc.netty4.model.RequestProcessor;
-import com.zero.easyrpc.netty4.netty.idle.AcceptorIdleStateTrigger;
-import com.zero.easyrpc.netty4.netty.idle.IdleStateChecker;
+import com.zero.easyrpc.netty4.model.Processor;
+import com.zero.easyrpc.netty4.headler.AcceptorIdleStateTrigger;
+import com.zero.easyrpc.netty4.headler.IdleStateChecker;
+import com.zero.easyrpc.netty4.util.ConnectionUtils;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -50,13 +51,15 @@ public class Server extends BaseServer implements NettyServer {
 
     private ServerConfig serverConfig;
 
+    // handler的执行线程
     private DefaultEventExecutorGroup defaultEventExecutorGroup;
 
+    // processor的默认执行线程
     private final ExecutorService defaultExecutor;
 
-    private final AcceptorIdleStateTrigger idleStateTrigger = new AcceptorIdleStateTrigger();
+    private final AcceptorIdleStateTrigger acceptorIdleStateTrigger = new AcceptorIdleStateTrigger();
 
-    private RPCHook rpcHook;
+    private InvokeHook invokeHook;
 
     public Server() {
         this.defaultExecutor = Executors.newFixedThreadPool(4, new ThreadFactory() {
@@ -69,9 +72,9 @@ public class Server extends BaseServer implements NettyServer {
         });
     }
 
-    public Server(ServerConfig nettyServerConfig) {
+    public Server(ServerConfig serverConfig) {
         this();
-        this.serverConfig = nettyServerConfig;
+        this.serverConfig = serverConfig;
     }
 
     @Override
@@ -123,13 +126,13 @@ public class Server extends BaseServer implements NettyServer {
             WriteBufferWaterMark waterMark = new WriteBufferWaterMark(writeBufferLowWaterMark, writeBufferHighWaterMark);
             serverBootstrap.childOption(ChannelOption.WRITE_BUFFER_WATER_MARK, waterMark);
         }
-
     }
 
     @Override
     public void start() {
+
         if (serverBootstrap == null) {
-            throw new IllegalStateException();
+            throw new IllegalStateException("Not init.");
         }
 
         defaultEventExecutorGroup = new DefaultEventExecutorGroup(Constants.AVAILABLE_PROCESSORS,
@@ -154,7 +157,7 @@ public class Server extends BaseServer implements NettyServer {
                         ch.pipeline().addLast(
                                 defaultEventExecutorGroup,
                                 new IdleStateChecker(timer, Constants.READER_IDLE_TIME_SECONDS, 0, 0),
-                                idleStateTrigger,
+                                acceptorIdleStateTrigger,
                                 new TransporterDecoder(),
                                 new TransporterEncoder(),
                                 new NettyServerHandler());
@@ -162,9 +165,8 @@ public class Server extends BaseServer implements NettyServer {
                 });
 
         try {
-            logger.info("netty bind [{}] serverBootstrap start...", this.serverConfig.getListenPort());
             serverBootstrap.bind().sync();
-            logger.info("netty start success at port [{}]", this.serverConfig.getListenPort());
+            logger.info("Netty start listen on {}...", this.serverConfig.getListenPort());
         } catch (InterruptedException e1) {
             logger.error("start serverBootstrap exception [{}]", e1.getMessage());
             throw new RuntimeException("this.serverBootstrap.bind().sync() InterruptedException", e1);
@@ -199,22 +201,22 @@ public class Server extends BaseServer implements NettyServer {
     }
 
     @Override
-    public void registerRPCHook(RPCHook rpcHook) {
-        this.rpcHook = rpcHook;
+    public void registerInvokeHook(InvokeHook invokeHook) {
+        this.invokeHook = invokeHook;
     }
 
     @Override
-    public void registerProecessor(byte sign, RequestProcessor processor, ExecutorService executor) {
+    public void registerProecessor(byte sign, Processor processor, ExecutorService executor) {
         ExecutorService e = executor;
         if (e == null) {
             e = this.defaultExecutor;
         }
-        Pair<RequestProcessor, ExecutorService> pair = new Pair<>(processor, e);
+        Pair<Processor, ExecutorService> pair = new Pair<>(processor, e);
         this.processorMap.put(sign, pair);
     }
 
     @Override
-    public void registerDefaultProcessor(RequestProcessor processor, ExecutorService executor) {
+    public void registerDefaultProcessor(Processor processor, ExecutorService executor) {
         this.defaultRequestProcessor = new Pair<>(processor, executor);
     }
 
@@ -227,7 +229,7 @@ public class Server extends BaseServer implements NettyServer {
     }
 
     @Override
-    public Pair<RequestProcessor, ExecutorService> getProcessorPair(int sign) {
+    public Pair<Processor, ExecutorService> getProcessorPair(int sign) {
         return processorMap.get((byte) sign);
     }
 
@@ -237,17 +239,22 @@ public class Server extends BaseServer implements NettyServer {
         return super.invokeSyncImpl(channel, request, timeoutMillis);
     }
 
-
     class NettyServerHandler extends SimpleChannelInboundHandler<Transporter> {
-
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, Transporter msg) throws Exception {
             processMessageReceived(ctx, msg);
         }
 
         @Override
+        public void channelActive(ChannelHandlerContext ctx) throws Exception {
+            logger.info("Accept connection {}." , ConnectionUtils.parseChannelRemoteAddr(ctx.channel()));
+            super.channelActive(ctx);
+        }
+
+        @Override
         public void channelInactive(ChannelHandlerContext ctx) throws Exception {
             processChannelInactive(ctx);
+            logger.info("Destory connection {}." , ConnectionUtils.parseChannelRemoteAddr(ctx.channel()));
         }
     }
 }

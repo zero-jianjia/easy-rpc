@@ -1,7 +1,7 @@
 package com.zero.easyrpc.client.consumer;
 
 import com.zero.easyrpc.netty4.util.ConnectionUtils;
-import com.zero.easyrpc.netty4.model.RequestProcessor;
+import com.zero.easyrpc.netty4.model.Processor;
 import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
@@ -15,7 +15,7 @@ import static com.zero.easyrpc.common.protocal.Protocol.SUBCRIBE_SERVICE_CANCEL;
  *  消费者端注册功能的主要处理逻辑
  * Created by jianjia1 on 17/12/07.
  */
-public class DefaultConsumerRegistryProcessor implements RequestProcessor {
+public class DefaultConsumerRegistryProcessor implements Processor {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultConsumerRegistryProcessor.class);
 

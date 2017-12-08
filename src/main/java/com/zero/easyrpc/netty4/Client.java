@@ -8,12 +8,12 @@ import com.zero.easyrpc.common.utils.NamedThreadFactory;
 import com.zero.easyrpc.common.utils.Pair;
 import com.zero.easyrpc.netty4.codec.TransporterEncoder;
 import com.zero.easyrpc.netty4.model.ChannelInactiveProcessor;
-import com.zero.easyrpc.netty4.model.RequestProcessor;
-import com.zero.easyrpc.netty4.netty.idle.ConnectorIdleStateTrigger;
-import com.zero.easyrpc.netty4.netty.idle.IdleStateChecker;
+import com.zero.easyrpc.netty4.model.Processor;
+import com.zero.easyrpc.netty4.headler.ConnectionIdleStateTrigger;
+import com.zero.easyrpc.netty4.headler.IdleStateChecker;
 import com.zero.easyrpc.netty4.codec.TransporterDecoder;
 import com.zero.easyrpc.netty4.util.ConnectionUtils;
-import com.zero.easyrpc.netty4.watcher.ConnectionWatchdog;
+import com.zero.easyrpc.netty4.headler.ConnectionWatchdog;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.*;
@@ -43,28 +43,29 @@ import java.util.concurrent.locks.ReentrantLock;
 public class Client extends BaseServer implements NettyClient {
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
 
+    private ClientConfig clientConfig;
+
     private Bootstrap bootstrap;
+    private EventLoopGroup worker;
+
+    private final Map<String, ChannelWrapper> channelMap = new ConcurrentHashMap<>();
 
     private volatile ByteBufAllocator allocator;
+
     private final Lock channelMapLock = new ReentrantLock();
+
     private static final long LockTimeoutMillis = 3000;
 
     private DefaultEventExecutorGroup defaultEventExecutorGroup;
 
-    private ClientConfig clientConfig;
-
-    private final ConnectorIdleStateTrigger idleStateTrigger = new ConnectorIdleStateTrigger();
+    private final ConnectionIdleStateTrigger connectionIdleStateTrigger = new ConnectionIdleStateTrigger();
 
     private HashedWheelTimer timer = new HashedWheelTimer(new NamedThreadFactory("netty.timer"));
 
-
-    private final Map<String, ChannelWrapper> channelMap = new ConcurrentHashMap<>();
-
     private boolean isReconnect = true;
 
-    private EventLoopGroup worker;
-
     public Client() {
+
     }
 
     public Client(ClientConfig clientConfig) {
@@ -73,9 +74,9 @@ public class Client extends BaseServer implements NettyClient {
 
     @Override
     public void init() {
-        ClientConfig config = getClientConfig();
+        ClientConfig config = clientConfig;
         if (config == null) {
-            throw new IllegalArgumentException("Not config.");
+            throw new IllegalArgumentException("No config.");
         }
 
         ThreadFactory workerFactory = new DefaultThreadFactory("netty.client");
@@ -113,7 +114,8 @@ public class Client extends BaseServer implements NettyClient {
             throw new IllegalStateException();
         }
 
-        this.defaultEventExecutorGroup = new DefaultEventExecutorGroup(getClientConfig().getWorkerThreads(),
+        this.defaultEventExecutorGroup = new DefaultEventExecutorGroup(
+                getClientConfig().getWorkerThreads(),
                 new ThreadFactory() {
                     private AtomicInteger count = new AtomicInteger(0);
 
@@ -129,7 +131,7 @@ public class Client extends BaseServer implements NettyClient {
             bootstrap.channel(NioSocketChannel.class);
         }
 
-        // 重连狗
+        // 重连
         final ConnectionWatchdog watchdog = new ConnectionWatchdog(bootstrap, timer) {
             @Override
             public ChannelHandler[] handlers() {
@@ -138,7 +140,7 @@ public class Client extends BaseServer implements NettyClient {
                         new TransporterDecoder(),
                         new TransporterEncoder(),
                         new IdleStateChecker(timer, 0, Constants.WRITER_IDLE_TIME_SECONDS, 0),
-                        idleStateTrigger,
+                        connectionIdleStateTrigger,
                         new NettyClientHandler()};
             }
         };
@@ -192,7 +194,7 @@ public class Client extends BaseServer implements NettyClient {
 
                 if (createNewConnection) {
                     ChannelFuture channelFuture = bootstrap.connect(ConnectionUtils.string2SocketAddress(address));
-                    logger.info("createChannel: begin to connect remote host[{}] asynchronously", address);
+                    logger.info("createChannel: begin to connect remote host {}.", address);
                     cw = new ChannelWrapper(channelFuture);
                     // 放入缓存
                     channelMap.put(address, cw);
@@ -225,13 +227,13 @@ public class Client extends BaseServer implements NettyClient {
     }
 
     @Override
-    public void registerProcessor(byte sign, RequestProcessor processor, ExecutorService executor) {
+    public void registerProcessor(byte sign, Processor processor, ExecutorService executor) {
         ExecutorService e = executor;
         if (e == null) {
             e = super.defaultExecutor;
         }
 
-        Pair<RequestProcessor, ExecutorService> pair = new Pair<>(processor, e);
+        Pair<Processor, ExecutorService> pair = new Pair<>(processor, e);
         processorMap.put(sign, pair);
     }
 
@@ -287,8 +289,8 @@ public class Client extends BaseServer implements NettyClient {
     }
 
     @Override
-    public void registerRPCHook(RPCHook rpcHook) {
-        this.rpcHook = rpcHook;
+    public void registerInvokeHook(InvokeHook invokeHook) {
+        this.invokeHook = invokeHook;
     }
 
     @Override
@@ -298,14 +300,14 @@ public class Client extends BaseServer implements NettyClient {
         if (channel != null && channel.isActive()) {
             try {
                 // 回调前置钩子
-                if (this.rpcHook != null) {
-                    this.rpcHook.doBeforeRequest(address, request);
+                if (this.invokeHook != null) {
+                    this.invokeHook.doBeforeRequest(address, request);
                 }
                 // 有了channel，有了request，request中也有了请求的Request.Code和Topic值，那么就是万事具备了，channel.writeAndFlush(request)就OK了
                 Transporter response = this.invokeSyncImpl(channel, request, timeoutMillis);
                 // 后置回调钩子
-                if (this.rpcHook != null) {
-                    this.rpcHook.doAfterResponse(ConnectionUtils.parseChannelRemoteAddr(channel), request, response);
+                if (this.invokeHook != null) {
+                    this.invokeHook.doAfterResponse(ConnectionUtils.parseChannelRemoteAddr(channel), request, response);
                 }
                 return response;
             } catch (RemotingSendRequestException e) {

@@ -1,6 +1,7 @@
 package com.zero.easyrpc.client.provider;
 
 import com.zero.easyrpc.common.exception.RemotingException;
+import com.zero.easyrpc.common.serialization.SerializerFactory;
 import com.zero.easyrpc.common.transport.body.AckCustomBody;
 import com.zero.easyrpc.common.utils.SystemClock;
 import com.zero.easyrpc.netty4.Transporter;
@@ -8,14 +9,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import static com.zero.easyrpc.common.serialization.SerializerFactory.serializerImpl;
 
 /**
- * provider端专业去连接registry的管理控制对象，用来处理provider与registry一切交互事宜
- * Created by jianjia1 on 17/12/04.
+ * provider端 连接registry的管理控制对象
+ * 用来处理provider与registry的交互
  */
 public class RegistryController {
 
@@ -23,68 +25,65 @@ public class RegistryController {
 
     private DefaultProvider defaultProvider;
 
-    private final ConcurrentMap<Long, MessageNonAck> messagesNonAcks = new ConcurrentHashMap<Long, MessageNonAck>();
+    private final Map<Long, MessageNonAck> messagesNonAcks = new ConcurrentHashMap<>();
 
     public RegistryController(DefaultProvider defaultProvider) {
         this.defaultProvider = defaultProvider;
     }
 
     /**
-     *
      * registry的地址，多个地址格式是host1:port1,host2:port2
      * @throws InterruptedException
      * @throws RemotingException
      */
     public void publishedAndStartProvider() throws InterruptedException, RemotingException {
-
         // stack copy
         List<Transporter> transporters = defaultProvider.getPublishRemotingTransporters();
 
-        if(null == transporters || transporters.isEmpty()){
-            logger.warn("service is empty please call DefaultProvider #publishService method");
+        if (null == transporters || transporters.isEmpty()) {
+            logger.warn("Service is empty, please call DefaultProvider #publishService method.");
             return;
         }
 
         String address = defaultProvider.getRegistryAddress();
 
         if (address == null) {
-            logger.warn("registry center address is empty please check your address");
+            logger.warn("Registry center address is empty.");
             return;
         }
+
         String[] addresses = address.split(",");
-        if (null != addresses && addresses.length > 0 ) {
-
+        if (addresses.length > 0) {
             for (String eachAddress : addresses) {
-
-                for (Transporter request : transporters) {
-
-                    pushPublishServiceToRegistry(request,eachAddress);
-
+                for (Transporter service : transporters) {
+                    pushPublishServiceToRegistry(service, eachAddress);
                 }
             }
         }
     }
 
-    private void pushPublishServiceToRegistry(Transporter request, String eachAddress) throws InterruptedException, RemotingException {
-        logger.info("[{}] transporters matched", request);
-        messagesNonAcks.put(request.getRequestId(), new MessageNonAck(request, eachAddress));
-        Transporter remotingTransporter = defaultProvider.getNettyRemotingClient().invokeSync(eachAddress, request, 3000);
-        if(null != remotingTransporter){
-            AckCustomBody ackCustomBody = serializerImpl().readObject(remotingTransporter.getBytes(), AckCustomBody.class);
+    private void pushPublishServiceToRegistry(Transporter service, String registerAddress) throws InterruptedException, RemotingException {
 
-            logger.info("received ack info [{}]", ackCustomBody);
-            if(ackCustomBody.isSuccess()){
+        messagesNonAcks.put(service.getRequestId(), new MessageNonAck(service, registerAddress));
+        
+        Transporter result = defaultProvider.getNettyClient().invokeSync(registerAddress, service, 3000);
+        if (result != null) {
+            AckCustomBody ackCustomBody = SerializerFactory.serializerImpl().readObject(result.getBytes(), AckCustomBody.class);
+
+            logger.info("Received ack info [{}]", ackCustomBody);
+            if (ackCustomBody.isSuccess()) {
                 messagesNonAcks.remove(ackCustomBody.getRequestId());
             }
-        }else{
+            logger.info("Publish service {} to Registry.", service);
+        } else {
             logger.warn("registry center handler timeout");
         }
     }
 
-    public void checkPublishFailMessage() throws InterruptedException, RemotingException{
-        if(messagesNonAcks.keySet() != null && messagesNonAcks.keySet().size() > 0){
-            logger.warn("have [{}] message send failed,send again",messagesNonAcks.keySet().size());
-            for(MessageNonAck ack : messagesNonAcks.values()){
+    public void checkPublishFailMessage() throws InterruptedException, RemotingException {
+        if (messagesNonAcks.keySet() != null && messagesNonAcks.keySet().size() > 0) {
+            logger.warn("have [{}] message send failed,send again", messagesNonAcks.keySet().size());
+            for (MessageNonAck ack : messagesNonAcks.values()) {
                 pushPublishServiceToRegistry(ack.getMsg(), ack.getAddress());
             }
         }

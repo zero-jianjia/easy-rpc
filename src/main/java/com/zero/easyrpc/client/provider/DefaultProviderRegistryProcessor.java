@@ -1,7 +1,7 @@
 package com.zero.easyrpc.client.provider;
 
 import com.zero.easyrpc.netty4.util.ConnectionUtils;
-import com.zero.easyrpc.netty4.model.RequestProcessor;
+import com.zero.easyrpc.netty4.model.Processor;
 import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
@@ -14,7 +14,7 @@ import static com.zero.easyrpc.common.protocal.Protocol.DEGRADE_SERVICE;
  * provider端注册的处理器
  * Created by jianjia1 on 17/12/04.
  */
-public class DefaultProviderRegistryProcessor implements RequestProcessor {
+public class DefaultProviderRegistryProcessor implements Processor {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultProviderRegistryProcessor.class);
 

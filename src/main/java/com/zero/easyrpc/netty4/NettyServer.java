@@ -4,7 +4,7 @@ import com.zero.easyrpc.common.exception.RemotingSendRequestException;
 import com.zero.easyrpc.common.exception.RemotingTimeoutException;
 import com.zero.easyrpc.common.utils.Pair;
 import com.zero.easyrpc.netty4.model.ChannelInactiveProcessor;
-import com.zero.easyrpc.netty4.model.RequestProcessor;
+import com.zero.easyrpc.netty4.model.Processor;
 import io.netty.channel.Channel;
 
 import java.util.concurrent.ExecutorService;
@@ -18,11 +18,11 @@ public interface NettyServer extends BaseService {
     Transporter invokeSync(final Channel channel, final Transporter request, final long timeoutMillis)
             throws InterruptedException, RemotingSendRequestException, RemotingTimeoutException;
 
-    void registerProecessor(final byte requestCode, final RequestProcessor processor, final ExecutorService executor);
+    void registerProecessor(final byte sign, final Processor processor, final ExecutorService executor);
 
     void registerChannelInactiveProcessor(final ChannelInactiveProcessor processor, final ExecutorService executor);
 
-    void registerDefaultProcessor(final RequestProcessor processor, final ExecutorService executor);
+    void registerDefaultProcessor(final Processor processor, final ExecutorService executor);
 
-    Pair<RequestProcessor, ExecutorService> getProcessorPair(final int requestCode);
+    Pair<Processor, ExecutorService> getProcessorPair(final int requestCode);
 }

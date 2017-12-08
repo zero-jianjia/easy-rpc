@@ -14,13 +14,14 @@ public class NettyClientTest {
     public static void main(String[] args) throws InterruptedException, RemotingException {
         ClientConfig nettyClientConfig = new ClientConfig();
         Client client = new Client(nettyClientConfig);
+        client.init();
         client.start();
 
         TestContentBody.ComplexTestObj complexTestObj = new TestContentBody.ComplexTestObj("attr1", 2);
         TestContentBody commonCustomHeader = new TestContentBody(1, "test",complexTestObj);
 
-        Transporter remotingTransporter = Transporter.createRequestTransporter(TEST, commonCustomHeader);
-        Transporter request = client.invokeSync("127.0.0.1:18001", remotingTransporter, 3000);
+        Transporter transporter = Transporter.createRequestTransporter(TEST, commonCustomHeader);
+        Transporter request = client.invokeSync("127.0.0.1:18001", transporter, 3000);
         System.out.println(request);
     }
 

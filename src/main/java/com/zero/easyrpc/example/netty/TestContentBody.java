@@ -10,9 +10,6 @@ import java.io.Serializable;
  */
 public class TestContentBody implements ContentBody,Serializable {
 
-    /**
-     *
-     */
     private static final long serialVersionUID = 7679994718274344134L;
 
     private int id;
@@ -66,10 +63,6 @@ public class TestContentBody implements ContentBody,Serializable {
     }
 
     public static class ComplexTestObj implements Serializable {
-
-        /**
-         *
-         */
         private static final long serialVersionUID = 5694424296393939225L;
 
         private String attr1;

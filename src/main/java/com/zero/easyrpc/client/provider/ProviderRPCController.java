@@ -26,10 +26,8 @@ import static com.zero.easyrpc.common.utils.Status.SERVICE_NOT_FOUND;
 
 /**
  * 处理consumer rpc请求的核心控制器，并统计处理的次数
- * Created by jianjia1 on 17/12/04.
  */
 public class ProviderRPCController {
-
     private static final Logger logger = LoggerFactory.getLogger(ProviderRPCController.class);
 
     private DefaultProvider defaultProvider;
@@ -37,8 +35,6 @@ public class ProviderRPCController {
     public ProviderRPCController(DefaultProvider defaultProvider) {
         this.defaultProvider = defaultProvider;
     }
-
-
 
     //处理RPC请求
     public void handlerRPCRequest(Transporter request, Channel channel) {

@@ -1,6 +1,6 @@
 package com.zero.easyrpc.netty4.model;
 
-import com.zero.easyrpc.netty4.InvokeCallback;
+import com.zero.easyrpc.netty4.Callback;
 import com.zero.easyrpc.netty4.Transporter;
 
 import java.util.concurrent.CountDownLatch;
@@ -10,37 +10,29 @@ import java.util.concurrent.TimeUnit;
  * 请求返回的对象包装类
  * Created by jianjia1 on 17/12/04.
  */
-public class RemotingResponse {
+public class Response {
 
-    // 远程端返回的结果集
-    private volatile Transporter transporter;
+    private final long id;// 请求ID
+    private final long timeoutMillis; // 请求超时时间
+    private final Callback callback;// 回调函数
 
-    // 该请求抛出的异常，如果存在的话
-    private volatile Throwable cause;
-    // 发送端是否发送成功
-    private volatile boolean sendRequestOK = true;
+    private volatile boolean sendRequestOK = true; //发送端是否发送成功
+    private volatile Transporter transporter; // 远程端返回的结果
 
-    // 请求的opaque
-    private final long opaque;
-
-    // 默认的回调函数
-    private final InvokeCallback invokeCallback;
-
-    // 请求的默认超时时间
-    private final long timeoutMillis;
+    private volatile Throwable cause; //该请求抛出的异常，如果存在的话
 
     private final long beginTimestamp = System.currentTimeMillis();
     private final CountDownLatch countDownLatch = new CountDownLatch(1);
 
-    public RemotingResponse(long opaque, long timeoutMillis, InvokeCallback invokeCallback) {
-        this.invokeCallback = invokeCallback;
-        this.opaque = opaque;
+    public Response(long id, long timeoutMillis, Callback callback) {
+        this.id = id;
         this.timeoutMillis = timeoutMillis;
+        this.callback = callback;
     }
 
     public void executeInvokeCallback() {
-        if (invokeCallback != null) {
-            invokeCallback.operationComplete(this);
+        if (callback != null) {
+            callback.operationComplete(this);
         }
     }
 
@@ -52,8 +44,8 @@ public class RemotingResponse {
         this.sendRequestOK = sendRequestOK;
     }
 
-    public long getOpaque() {
-        return opaque;
+    public long getId() {
+        return id;
     }
 
     public Transporter getTransporter() {
@@ -80,7 +72,7 @@ public class RemotingResponse {
         return beginTimestamp;
     }
 
-    public Transporter waitResponse() throws InterruptedException{
+    public Transporter waitResponse() throws InterruptedException {
         this.countDownLatch.await(this.timeoutMillis, TimeUnit.MILLISECONDS);
         return this.transporter;
     }
@@ -88,10 +80,10 @@ public class RemotingResponse {
     /**
      * 当远程端返回结果的时候，TCP的长连接的上层载体channel 的handler会将其放入与requestId
      * 对应的Response中去
-     * @param remotingTransporter
+     * @param transporter
      */
-    public void putResponse(final Transporter remotingTransporter){
-        this.transporter = remotingTransporter;
+    public void putResponse(final Transporter transporter) {
+        this.transporter = transporter;
         //接收到对应的消息之后需要countDown
         this.countDownLatch.countDown();
     }

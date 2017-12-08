@@ -1,7 +1,7 @@
 package com.zero.easyrpc.client.provider;
 
 import com.zero.easyrpc.netty4.util.ConnectionUtils;
-import com.zero.easyrpc.netty4.model.RequestProcessor;
+import com.zero.easyrpc.netty4.model.Processor;
 import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
@@ -12,7 +12,7 @@ import static com.zero.easyrpc.common.protocal.Protocol.RPC_REQUEST;
 /**
  * Created by jianjia1 on 17/12/04.
  */
-public class DefaultProviderRPCProcessor implements RequestProcessor {
+public class DefaultProviderRPCProcessor implements Processor {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultProviderRPCProcessor.class);
 

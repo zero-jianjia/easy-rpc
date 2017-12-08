@@ -4,9 +4,9 @@ import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.ChannelHandlerContext;
 
 /**
- * 处理请求类
+ * 处理请求
  */
-public interface RequestProcessor {
+public interface Processor {
 
     Transporter processRequest(ChannelHandlerContext ctx, Transporter request) throws Exception;
 

@@ -9,7 +9,7 @@ import com.zero.easyrpc.common.transport.body.ManagerServiceCustomBody;
 import com.zero.easyrpc.common.transport.body.MetricsCustomBody;
 import com.zero.easyrpc.common.transport.body.ProviderMetricsCustomBody;
 import com.zero.easyrpc.netty4.util.ConnectionUtils;
-import com.zero.easyrpc.netty4.model.RequestProcessor;
+import com.zero.easyrpc.netty4.model.Processor;
 import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
@@ -33,7 +33,7 @@ import static com.zero.easyrpc.common.serialization.SerializerFactory.serializer
  * @time 2016年8月17日
  * @modifytime
  */
-public class DefaultMonitorProcessor implements RequestProcessor {
+public class DefaultMonitorProcessor implements Processor {
 	
 	private static final Logger logger = LoggerFactory.getLogger(DefaultMonitorProcessor.class);
 	

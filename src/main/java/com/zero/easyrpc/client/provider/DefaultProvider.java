@@ -24,32 +24,33 @@ import java.util.concurrent.*;
 
 /**
  * 服务提供者端的具体实现
- * Created by jianjia1 on 17/12/04.
  */
 public class DefaultProvider implements Provider {
-
     private static final Logger logger = LoggerFactory.getLogger(DefaultProvider.class);
 
-    private ClientConfig clientConfig;               // 向注册中心连接的netty client配置
-    private ServerConfig serverConfig; 			  // 等待服务提供者连接的netty server的配置
+    private Client nettyClient;          // 用于连接monitor和注册中心的Client
+    private Server nettyRPCServer;       // 提供PRC服务的Server，等待被Consumer连接
+    private Server nettyVIPRPCServer;    // 提供PRC服务的Server，等待被Consumer VIP连接
 
-    private Client nettyRemotingClient; 	  // 连接monitor和注册中心
-    private Server nettyRemotingServer;      // 等待被Consumer连接
-    private Server nettyRemotingVipServer;   // 等待被Consumer VIP连接
+
+    private ClientConfig clientConfig;   // 向注册中心连接的netty client配置
+    private ServerConfig serverConfig;     // 等待服务提供者连接的netty server的配置
 
     private ProviderRegistryController providerController;// provider端向注册中心连接的业务逻辑的控制器
     private ProviderRPCController providerRPCController;  // consumer端远程调用的核心控制器
 
     private ExecutorService remotingExecutor;             // RPC调用的核心线程执行器
-    private ExecutorService remotingVipExecutor; 		  // RPC调用VIP的核心线程执行器
+    private ExecutorService remotingVipExecutor;          // RPC调用VIP的核心线程执行器
 
-    private Channel monitorChannel; 					  // 连接monitor端的channel
+    private Channel monitorChannel;                      // 连接monitor端的channel
 
     /********* 要发布的服务的信息 ***********/
     private List<Transporter> publishRemotingTransporters;
     /************ 全局发布的信息 ************/
     private ConcurrentMap<String, PublishServiceCustomBody> globalPublishService = new ConcurrentHashMap<String, PublishServiceCustomBody>();
-    /***** 注册中心的地址 ******/
+    /**
+     * *** 注册中心的地址 *****
+     */
     private String registryAddress;
     /******* 服务暴露给consumer的地址 ********/
     private int exposePort;
@@ -84,13 +85,14 @@ public class DefaultProvider implements Provider {
     }
 
     private void initialize() {
+        this.nettyClient = new Client(this.clientConfig);
 
-        this.nettyRemotingServer = new Server(this.serverConfig);
-        this.nettyRemotingClient = new Client(this.clientConfig);
-        this.nettyRemotingVipServer = new Server(this.serverConfig);
+        this.nettyRPCServer = new Server(this.serverConfig);
+        this.nettyVIPRPCServer = new Server(this.serverConfig);
 
-        this.remotingExecutor = Executors.newFixedThreadPool(serverConfig.getWorkerThreads(), new NamedThreadFactory("providerExecutorThread_"));
-        this.remotingVipExecutor = Executors.newFixedThreadPool(serverConfig.getWorkerThreads() / 2, new NamedThreadFactory("providerExecutorThread_"));
+        this.remotingExecutor = Executors.newFixedThreadPool(serverConfig.getWorkerThreads(), new NamedThreadFactory("providerExecutorThread-"));
+        this.remotingVipExecutor = Executors.newFixedThreadPool(serverConfig.getWorkerThreads() / 2, new NamedThreadFactory("providerVIPExecutorThread-"));
+
         // 注册处理器
         this.registerProcessor();
 
@@ -168,14 +170,18 @@ public class DefaultProvider implements Provider {
 
     private void registerProcessor() {
         DefaultProviderRegistryProcessor defaultProviderRegistryProcessor = new DefaultProviderRegistryProcessor(this);
+
         // provider端作为client端去连接registry注册中心的处理器
-        this.nettyRemotingClient.registerProcessor(Protocol.DEGRADE_SERVICE, defaultProviderRegistryProcessor, null);
-        this.nettyRemotingClient.registerProcessor(Protocol.AUTO_DEGRADE_SERVICE, defaultProviderRegistryProcessor, null);
-        // provider端连接registry链接inactive的时候要进行的操作(设置registry的状态为不健康，告之registry重新发送服务注册信息)
-        this.nettyRemotingClient.registerChannelInactiveProcessor(new DefaultProviderInactiveProcessor(this), null);
-        // provider端作为netty的server端去等待调用者连接的处理器，此处理器只处理RPC请求
-        this.nettyRemotingServer.registerDefaultProcessor(new DefaultProviderRPCProcessor(this), this.remotingExecutor);
-        this.nettyRemotingVipServer.registerDefaultProcessor(new DefaultProviderRPCProcessor(this), this.remotingVipExecutor);
+        nettyClient.registerProcessor(Protocol.DEGRADE_SERVICE, defaultProviderRegistryProcessor, null);
+        nettyClient.registerProcessor(Protocol.AUTO_DEGRADE_SERVICE, defaultProviderRegistryProcessor, null);
+
+        // provider端连接registry时 链接inactive的时候要进行的操作
+        // 设置registry的状态为不健康，告之registry重新发送服务注册信息
+        nettyClient.registerChannelInactiveProcessor(new DefaultProviderInactiveProcessor(this), null);
+
+        // provider端作为Server端去待调用者连接的处理器，此处理器只处理RPC请求
+        nettyRPCServer.registerDefaultProcessor(new DefaultProviderRPCProcessor(this), this.remotingExecutor);
+        nettyVIPRPCServer.registerDefaultProcessor(new DefaultProviderRPCProcessor(this), this.remotingVipExecutor);
     }
 
     public List<Transporter> getPublishRemotingTransporters() {
@@ -232,26 +238,26 @@ public class DefaultProvider implements Provider {
         // 记录发布的信息的记录，方便其他地方做使用
         initGlobalService();
 
-        nettyRemotingClient.start();
+        nettyClient.start();
 
         try {
             // 发布任务
             this.publishedAndStartProvider();
             logger.info("######### provider start successfully..... ########");
         } catch (Exception e) {
-            logger.error("publish service to registry failed [{}]",e.getMessage());
+            logger.error("publish service to registry failed [{}]", e.getMessage());
         }
 
         int _port = this.exposePort;
 
-        if(_port != 0){
+        if (_port != 0) {
 
             this.serverConfig.setListenPort(exposePort);
-            this.nettyRemotingServer.start();
+            this.nettyRPCServer.start();
 
             int vipPort = _port - 2;
             this.serverConfig.setListenPort(vipPort);
-            this.nettyRemotingVipServer.start();
+            this.nettyVIPRPCServer.start();
         }
 
 
@@ -318,10 +324,10 @@ public class DefaultProvider implements Provider {
                     .lookupService(serviceName);
             DefaultServiceProviderContainer.CurrentServiceState currentServiceState = pair.getKey();
 
-            if(degradeService == Protocol.DEGRADE_SERVICE){
+            if (degradeService == Protocol.DEGRADE_SERVICE) {
                 // 如果已经降级了，则直接返回成功
                 currentServiceState.getHasDegrade().set(!currentServiceState.getHasDegrade().get());
-            }else if(degradeService == Protocol.AUTO_DEGRADE_SERVICE){
+            } else if (degradeService == Protocol.AUTO_DEGRADE_SERVICE) {
                 currentServiceState.getIsAutoDegrade().set(true);
             }
             ackCustomBody.setSuccess(true);
@@ -331,11 +337,11 @@ public class DefaultProvider implements Provider {
 
 
     private Channel connectionToMonitor() throws InterruptedException {
-        return this.nettyRemotingClient.createChannel(monitorAddress);
+        return this.nettyClient.createChannel(monitorAddress);
     }
 
-    public Client getNettyRemotingClient() {
-        return nettyRemotingClient;
+    public Client getNettyClient() {
+        return nettyClient;
     }
 
     public ProviderRegistryController getProviderController() {

@@ -114,4 +114,15 @@ public class Transporter extends BytesHolder {
         this.type = type;
         return this;
     }
+
+    @Override
+    public String toString() {
+        return "Transporter{" +
+                "sign=" + sign +
+                ", content=" + content +
+                ", timestamp=" + timestamp +
+                ", requestId=" + requestId +
+                ", type=" + type +
+                '}';
+    }
 }

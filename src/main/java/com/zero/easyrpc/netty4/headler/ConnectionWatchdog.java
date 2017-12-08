@@ -1,5 +1,6 @@
-package com.zero.easyrpc.netty4.watcher;
+package com.zero.easyrpc.netty4.headler;
 
+import com.zero.easyrpc.netty4.util.ConnectionUtils;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.util.Timeout;
@@ -49,8 +50,7 @@ public abstract class ConnectionWatchdog extends ChannelInboundHandlerAdapter im
         attempts = 0;
         firstConnection = true;
 
-        logger.info("Connects with {}.", channel);
-
+        logger.info("Connects with {}.", ConnectionUtils.parseChannelRemoteAddr(channel));
         ctx.fireChannelActive();
     }
 

@@ -1,7 +1,7 @@
 package com.zero.easyrpc.example.netty;
 
 import com.zero.easyrpc.common.protocal.Protocol;
-import com.zero.easyrpc.netty4.model.RequestProcessor;
+import com.zero.easyrpc.netty4.model.Processor;
 import com.zero.easyrpc.netty4.Transporter;
 import com.zero.easyrpc.netty4.Server;
 import com.zero.easyrpc.netty4.ServerConfig;
@@ -21,8 +21,9 @@ public class NettyServerTest {
 
         ServerConfig config = new ServerConfig();
         config.setListenPort(18001);
+
         Server server = new Server(config);
-        server.registerProecessor(TEST, new RequestProcessor() {
+        server.registerProecessor(TEST, new Processor() {
             @Override
             public Transporter processRequest(ChannelHandlerContext ctx, Transporter transporter) throws Exception {
                 transporter.setContent(serializerImpl().readObject(transporter.getBytes(), TestContentBody.class));
@@ -31,6 +32,7 @@ public class NettyServerTest {
                 return transporter;
             }
         }, Executors.newCachedThreadPool());
+        server.init();
         server.start();
     }
 }

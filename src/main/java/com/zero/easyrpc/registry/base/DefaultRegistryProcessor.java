@@ -1,7 +1,7 @@
 package com.zero.easyrpc.registry.base;
 
 import com.zero.easyrpc.netty4.util.ConnectionUtils;
-import com.zero.easyrpc.netty4.model.RequestProcessor;
+import com.zero.easyrpc.netty4.model.Processor;
 import com.zero.easyrpc.netty4.Transporter;
 import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
@@ -13,7 +13,7 @@ import static com.zero.easyrpc.common.protocal.Protocol.*;
  * 注册中心的处理转换器
  * Created by jianjia1 on 17/12/07.
  */
-public class DefaultRegistryProcessor implements RequestProcessor {
+public class DefaultRegistryProcessor implements Processor {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultRegistryProcessor.class);
 

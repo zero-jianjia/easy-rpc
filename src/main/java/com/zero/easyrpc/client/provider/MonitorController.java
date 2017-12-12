@@ -13,18 +13,21 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- *  provider 端连接monitor端的控制端
+ * provider 端连接monitor端的控制端
  * Created by jianjia1 on 17/12/04.
  */
-public class ProviderMonitorController {
-    private static final Logger logger = LoggerFactory.getLogger(ProviderMonitorController.class);
+public class MonitorController {
+    private static final Logger logger = LoggerFactory.getLogger(MonitorController.class);
 
     private DefaultProvider defaultProvider;
 
-    public ProviderMonitorController(DefaultProvider defaultProvider) {
+    private Channel monitorChannel;    // 连接monitor端的channel
+
+    public MonitorController(DefaultProvider defaultProvider) {
         this.defaultProvider = defaultProvider;
     }
 
@@ -40,61 +43,74 @@ public class ProviderMonitorController {
             return;
         }
 
-        if(defaultProvider.getGlobalPublishService() == null){
+        if (defaultProvider.getGlobalPublishService() == null) {
             logger.warn("publish info is empty");
             return;
         }
 
-        ConcurrentMap<String, Meter> metricsMap = ServiceMeterManager.getGlobalMeterManager();
-        if (metricsMap != null && metricsMap.keySet() != null && metricsMap.values() != null) {
+        if (monitorChannelActive()) {
+            logger.warn("channel is not active");
+            return;
+        }
 
-            List<MetricsReporter> reporters = new ArrayList<MetricsReporter>();
-
-            List<Meter> meters = new ArrayList<Meter>();
+        Map<String, Meter> metricsMap = ServiceMeterManager.getGlobalMeterManager();
+        if (metricsMap != null) {
+            List<MetricsReporter> reporters = new ArrayList<>();
+            List<Meter> meters = new ArrayList<>();
             meters.addAll(metricsMap.values());
 
-            if(!meters.isEmpty()){
+            if (!meters.isEmpty()) {
 
-                for(int i = 0;i<meters.size();i++){
-
+                for (int i = 0; i < meters.size(); i++) {
                     MetricsReporter metricsReporter = new MetricsReporter();
 
                     String serviceName = meters.get(i).getServiceName();
                     PublishServiceCustomBody body = defaultProvider.getGlobalPublishService().get(serviceName);
 
-                    if(body == null){
-                        logger.warn("servicename [{}] has no publishInfo ",serviceName);
+                    if (body == null) {
+                        logger.warn("servicename [{}] has no publishInfo ", serviceName);
                         continue;
                     }
 
                     metricsReporter.setServiceName(serviceName);
                     metricsReporter.setHost(body.getHost());
-                    metricsReporter.setPort(body.isVIPService() ? (body.getPort() -2):body.getPort());
+                    metricsReporter.setPort(body.isVIPService() ? (body.getPort() - 2) : body.getPort());
                     metricsReporter.setCallCount(meters.get(i).getCallCount().get());
                     metricsReporter.setFailCount(meters.get(i).getFailedCount().get());
                     metricsReporter.setTotalReuqestTime(meters.get(i).getTotalCallTime().get());
                     metricsReporter.setRequestSize(meters.get(i).getTotalRequestSize().get());
                     reporters.add(metricsReporter);
                 }
+
                 ProviderMetricsCustomBody body = new ProviderMetricsCustomBody();
                 body.setMetricsReporter(reporters);
                 Transporter remotingTransporter = Transporter.createRequestTransporter(Protocol.MERTRICS_SERVICE, body);
-                Channel channel = defaultProvider.getMonitorChannel();
 
-                if (null != channel && channel.isActive() && channel.isWritable()) {
-                    channel.writeAndFlush(remotingTransporter);
+                if (monitorChannel != null && monitorChannel.isActive() && monitorChannel.isWritable()) {
+                    monitorChannel.writeAndFlush(remotingTransporter);
                 }
             }
         }
 
     }
 
-    public void checkMonitorChannel() throws InterruptedException {
-        Channel channel = defaultProvider.getMonitorChannel();
-
-        if ((null == channel || !channel.isActive()) && defaultProvider.getMonitorAddress() != null) {
-            defaultProvider.initMonitorChannel();
+    public boolean monitorChannelActive() {
+        if (defaultProvider.getMonitorAddress() == null) {
+            return false;
         }
+
+        if (monitorChannel == null || !monitorChannel.isActive()) {
+            try {
+                monitorChannel = defaultProvider.getNettyClient().createChannel(defaultProvider.getMonitorAddress());
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        if (monitorChannel != null && monitorChannel.isActive()) {
+            return true;
+        }
+        return false;
     }
 
 }

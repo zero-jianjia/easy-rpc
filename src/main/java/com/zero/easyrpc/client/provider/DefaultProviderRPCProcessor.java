@@ -35,7 +35,7 @@ public class DefaultProviderRPCProcessor implements Processor {
         switch (request.getSign()) {
             case RPC_REQUEST:
                 //这边稍微特殊处理一下，可以返回null,我们不需要叫外层代码帮我们writeAndFlush 发出请求，因为我们持有channel，这样做rpc可以更加灵活一点
-                this.defaultProvider.handlerRPCRequest(request,ctx.channel());
+                defaultProvider.handlerRPCRequest(request, ctx.channel());
                 break;
         }
         return null;

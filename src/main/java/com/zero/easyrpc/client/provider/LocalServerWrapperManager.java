@@ -10,6 +10,7 @@ import com.zero.easyrpc.common.transport.body.PublishServiceCustomBody;
 import com.zero.easyrpc.netty4.Transporter;
 import io.netty.util.internal.StringUtil;
 import net.bytebuddy.ByteBuddy;
+import net.bytebuddy.implementation.MethodDelegation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,7 +22,6 @@ import java.util.List;
 import static com.zero.easyrpc.common.utils.Reflects.getValue;
 import static com.zero.easyrpc.common.utils.Reflects.setValue;
 import static net.bytebuddy.dynamic.loading.ClassLoadingStrategy.Default.INJECTION;
-import static net.bytebuddy.implementation.MethodDelegation.to;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static org.objenesis.ObjenesisHelper.newInstance;
 
@@ -32,27 +32,25 @@ import static org.objenesis.ObjenesisHelper.newInstance;
 public class LocalServerWrapperManager {
     private static final Logger logger = LoggerFactory.getLogger(LocalServerWrapperManager.class);
 
-    private ProviderRegistryController providerController;
+    private RegistryController registryController;
 
-    public LocalServerWrapperManager(ProviderRegistryController providerRegistryController) {
-        this.providerController = providerRegistryController;
+    public LocalServerWrapperManager(RegistryController providerRegistryController) {
+        this.registryController = providerRegistryController;
     }
 
     /**
-     * 服务暴露的网络地址,例如172.30.53.58::8989
+     * 服务暴露的网络地址,例如172.30.53.58:8989
      * 全局限流工具
      * @param obj 暴露的方法的实例
      * @return
      */
     public List<Transporter> wrapperRegisterInfo(int port, Object... obj) {
 
-        List<Transporter> remotingTransporters = new ArrayList<Transporter>();
+        List<Transporter> transporterList = new ArrayList<>();
 
         //基本判断，如果暴露的方法是null或者是0，则说明无需编织服务
-        if (null != obj && obj.length > 0) {
-
+        if (obj != null && obj.length > 0) {
             for (Object o : obj) {
-
                 //默认的编织对象
                 DefaultServiceWrapper defaultServiceWrapper = new DefaultServiceWrapper();
 
@@ -75,18 +73,15 @@ public class LocalServerWrapperManager {
                         commonCustomHeader.setMaxCallCountInMinute(serviceWrapper.getMaxCallCountInMinute());
 
                         Transporter remotingTransporter = Transporter.createRequestTransporter(Protocol.PUBLISH_SERVICE, commonCustomHeader);
-                        remotingTransporters.add(remotingTransporter);
+                        transporterList.add(remotingTransporter);
                     }
                 }
             }
         }
-        return remotingTransporters;
+        return transporterList;
 
     }
 
-    /**
-     * @author BazingaLyn
-     */
     class DefaultServiceWrapper implements ServiceWrapperWorker {
 
         //全局拦截proxy
@@ -100,7 +95,7 @@ public class LocalServerWrapperManager {
         @Override
         public ServiceWrapperWorker provider(Object serviceProvider) {
             //如果proxy的对象是null,实例对象无需编织，直接返回
-            if (null == globalProviderProxyHandler) {
+            if (globalProviderProxyHandler == null) {
                 this.serviceProvider = serviceProvider;
             } else {
                 Class<?> globalProxyCls = generateProviderProxyClass(globalProviderProxyHandler, serviceProvider.getClass());
@@ -124,18 +119,18 @@ public class LocalServerWrapperManager {
         @Override
         public List<ServiceWrapper> create() {
 
-            List<ServiceWrapper> serviceWrappers = new ArrayList<ServiceWrapper>();
+            List<ServiceWrapper> serviceWrappers = new ArrayList<>();
 
             //读取对象的方法注解
             RPCService rpcService = null;
 
             for (Class<?> cls = serviceProvider.getClass(); cls != Object.class; cls = cls.getSuperclass()) {
                 Method[] methods = cls.getMethods();
-                if (null != methods && methods.length > 0) {
+                if (methods != null && methods.length > 0) {
 
                     for (Method method : methods) {
                         rpcService = method.getAnnotation(RPCService.class);
-                        if (null != rpcService) {
+                        if (rpcService != null) {
 
                             //服务名
                             String serviceName = StringUtil.isNullOrEmpty(rpcService.serviceName()) ? method.getName() : rpcService.serviceName();
@@ -160,8 +155,10 @@ public class LocalServerWrapperManager {
                             if (maxCallCount <= 0) {
                                 throw new RpcWrapperException("max call count must over zero at unit time");
                             }
-                            ServiceFlowControllerManager serviceFlowControllerManager = providerController.getServiceFlowControllerManager();
+
+                            ServiceFlowControllerManager serviceFlowControllerManager = registryController.getServiceFlowControllerManager();
                             serviceFlowControllerManager.setServiceLimitVal(serviceName, maxCallCount);
+
                             //如果是支持服务降级服务，则需要根据降级方法的路径去创建这个实例，并编制proxy
                             if (isSupportDegradeService) {
                                 Class<?> degradeClass = null;
@@ -201,7 +198,7 @@ public class LocalServerWrapperManager {
                                     isFlowControl,
                                     maxCallCount);
                             //放入到一个缓存中，方便以后consumer来调取服务的时候，该来获取对应真正的编织类
-                            providerController.getProviderContainer().registerService(serviceName, serviceWrapper);
+                            registryController.getServiceContainer().registerService(serviceName, serviceWrapper);
 
                             serviceWrappers.add(serviceWrapper);
                         }
@@ -217,7 +214,7 @@ public class LocalServerWrapperManager {
                 return new ByteBuddy()
                         .subclass(providerCls)
                         .method(isDeclaredBy(providerCls))
-                        .intercept(to(proxyHandler, "handler"))//.filter(not(isDeclaredBy(Object.class))))
+                        .intercept(MethodDelegation.to(proxyHandler, "handler"))//.filter(not(isDeclaredBy(Object.class))))
                         .make()
                         .load(providerCls.getClassLoader(), INJECTION)
                         .getLoaded();

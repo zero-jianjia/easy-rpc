@@ -12,7 +12,6 @@ import com.zero.easyrpc.common.rpc.ServiceReviewState;
  */
 public class ManagerServiceCustomBody implements ContentBody {
 
-
     private ManagerServiceRequestType managerServiceRequestType;//管理的类型
     private String serivceName;									//服务名
     private RegisterMeta.Address address;									//该服务提供的地址

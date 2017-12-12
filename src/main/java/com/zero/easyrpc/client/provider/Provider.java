@@ -15,15 +15,10 @@ import io.netty.channel.Channel;
 public interface Provider {
 
     /**
-     * 启动provider的实例
+     * 需要暴露的接口
+     * @param obj
      */
-    void start() throws InterruptedException, RemotingException;
-
-
-    /**
-     * 发布服务
-     */
-    void publishedAndStartProvider() throws InterruptedException, RemotingException;
+    Provider publishService(Object... obj);
 
     /**
      * 暴露服务的地址
@@ -37,6 +32,15 @@ public interface Provider {
      */
     Provider registryAddress(String registryAddress);
 
+    /**
+     * 发布服务
+     */
+    void publishedAndStartProvider() throws InterruptedException, RemotingException;
+
+    /**
+     * 启动provider的实例
+     */
+    void start() throws InterruptedException, RemotingException;
 
     /**
      * 监控中心的地址，不是强依赖，不设置也没有关系
@@ -46,18 +50,10 @@ public interface Provider {
     Provider monitorAddress(String monitorAddress);
 
     /**
-     * 需要暴露的接口
-     * @param obj
-     */
-    Provider publishService(Object... obj);
-
-
-    /**
      * 处理消费者的rpc请求
      * @param request
      * @param channel
      * @return
      */
     void handlerRPCRequest(Transporter request, Channel channel);
-
 }

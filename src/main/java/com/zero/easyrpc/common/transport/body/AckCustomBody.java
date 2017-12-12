@@ -14,7 +14,6 @@ public class AckCustomBody implements ContentBody {
     //是否消费处理成功
     private boolean success;
 
-
     public AckCustomBody(long requestId, boolean success) {
         this.requestId = requestId;
         this.success = success;
@@ -44,6 +43,5 @@ public class AckCustomBody implements ContentBody {
     public String toString() {
         return "AckCustomBody [requestId=" + requestId + ", success=" + success + "]";
     }
-
 
 }

@@ -8,7 +8,6 @@ import com.zero.easyrpc.common.exception.RemotingCommmonCustomException;
  */
 public class PublishServiceCustomBody implements ContentBody {
 
-
     private String host;				    // 服务的地址
     private int port;					    // 服务的端口
     private String serviceProviderName;     // 服务名

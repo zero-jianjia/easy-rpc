@@ -36,9 +36,9 @@ public class DefaultProviderRegistryProcessor implements Processor {
 
         switch (request.getSign()) {
             case DEGRADE_SERVICE:
-                return this.defaultProvider.handlerDegradeServiceRequest(request,ctx.channel(),DEGRADE_SERVICE);
+                return defaultProvider.handlerDegradeServiceRequest(request, ctx.channel(), DEGRADE_SERVICE);
             case AUTO_DEGRADE_SERVICE:
-                return this.defaultProvider.handlerDegradeServiceRequest(request,ctx.channel(),AUTO_DEGRADE_SERVICE);
+                return defaultProvider.handlerDegradeServiceRequest(request, ctx.channel(), AUTO_DEGRADE_SERVICE);
         }
         return null;
     }

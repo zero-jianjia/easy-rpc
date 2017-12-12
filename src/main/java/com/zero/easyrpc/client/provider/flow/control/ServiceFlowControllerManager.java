@@ -23,7 +23,7 @@ public class ServiceFlowControllerManager {
      */
     public void setServiceLimitVal(String serviceName,Long maxCallCount){
 
-        Pair<Long,ServiceFlowController> pair = new Pair<Long, ServiceFlowController>();
+        Pair<Long,ServiceFlowController> pair = new Pair<>();
         pair.setKey(maxCallCount);
         pair.setValue(new ServiceFlowController());
         globalFlowControllerMap.put(serviceName, pair);

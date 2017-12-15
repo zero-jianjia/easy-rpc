@@ -8,6 +8,7 @@ import com.zero.easyrpc.common.rpc.RegisterMeta;
 import com.zero.easyrpc.common.transport.body.AckCustomBody;
 import com.zero.easyrpc.common.transport.body.SubcribeResultCustomBody;
 import com.zero.easyrpc.netty4.Transporter;
+import com.zero.easyrpc.registry.DefaultRegistry;
 import io.netty.channel.Channel;
 import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;
@@ -25,19 +26,18 @@ import java.util.List;
  * Created by jianjia1 on 17/12/07.
  */
 public class RegistryConsumerManager {
-
     private static final Logger logger = LoggerFactory.getLogger(RegistryConsumerManager.class);
 
-    private DefaultRegistryServer defaultRegistryServer;
+    private DefaultRegistry defaultRegistry;
 
     private static final AttributeKey<ConcurrentSet<String>> S_SUBSCRIBE_KEY = AttributeKey.valueOf("server.subscribed");
 
     private volatile ChannelGroup subscriberChannels = new DefaultChannelGroup("subscribers", GlobalEventExecutor.INSTANCE);
 
-    private final ConcurrentSet<MessageNonAck> messagesNonAcks = new ConcurrentSet<MessageNonAck>();
+    private final ConcurrentSet<MessageNonAck> messagesNonAcks = new ConcurrentSet<>();
 
-    public RegistryConsumerManager(DefaultRegistryServer defaultRegistryServer) {
-        this.defaultRegistryServer = defaultRegistryServer;
+    public RegistryConsumerManager(DefaultRegistry defaultRegistry) {
+        this.defaultRegistry = defaultRegistry;
     }
 
     public ChannelGroup getSubscriberChannels() {
@@ -46,7 +46,6 @@ public class RegistryConsumerManager {
 
     /**
      * 通知相关的订阅者服务的信息
-     *
      * @param meta
      * @param loadBalanceStrategy
      * @throws InterruptedException
@@ -57,14 +56,13 @@ public class RegistryConsumerManager {
 
         // 构建订阅通知的主体传输对象
         SubcribeResultCustomBody subcribeResultCustomBody = new SubcribeResultCustomBody();
-        buildSubcribeResultCustomBody(meta, subcribeResultCustomBody,loadBalanceStrategy);
+        buildSubcribeResultCustomBody(meta, subcribeResultCustomBody, loadBalanceStrategy);
 
         // 传送给consumer对象的RemotingTransporter
         Transporter sendConsumerRemotingTrasnporter = Transporter.createRequestTransporter(Protocol.SUBCRIBE_RESULT,
                 subcribeResultCustomBody);
 
         pushMessageToConsumer(sendConsumerRemotingTrasnporter, meta.getServiceName());
-
     }
 
     /**
@@ -78,7 +76,7 @@ public class RegistryConsumerManager {
 
         // 构建订阅通知的主体传输对象
         SubcribeResultCustomBody subcribeResultCustomBody = new SubcribeResultCustomBody();
-        buildSubcribeResultCustomBody(meta, subcribeResultCustomBody,null);
+        buildSubcribeResultCustomBody(meta, subcribeResultCustomBody, null);
 
         Transporter sendConsumerRemotingTrasnporter = Transporter.createRequestTransporter(Protocol.SUBCRIBE_SERVICE_CANCEL,
                 subcribeResultCustomBody);
@@ -88,16 +86,15 @@ public class RegistryConsumerManager {
     }
 
 
-
     /**
      * 检查messagesNonAcks中是否有发送失败的信息，然后再次发送
      */
-    public void checkSendFailedMessage(){
+    public void checkSendFailedMessage() {
 
         ConcurrentSet<MessageNonAck> nonAcks = messagesNonAcks;
         messagesNonAcks.clear();
-        if(nonAcks != null){
-            for(MessageNonAck messageNonAck:nonAcks){
+        if (nonAcks != null) {
+            for (MessageNonAck messageNonAck : nonAcks) {
                 try {
                     pushMessageToConsumer(messageNonAck.getMsg(), messageNonAck.getServiceName());
                 } catch (Exception e) {
@@ -105,14 +102,11 @@ public class RegistryConsumerManager {
                 }
             }
         }
-        nonAcks = null; //help GC
     }
 
-    /***************************分隔符，上面为对外方法*****************************************************/
 
     /**
      * 因为在consumer订阅服务的时候，就会在其channel上绑定其订阅的信息
-     *
      * @param channel
      * @return
      */
@@ -124,47 +118,45 @@ public class RegistryConsumerManager {
 
     /**
      * 构建返回给consumer的返回主体对象
-     *
      * @param meta
      * @param subcribeResultCustomBody
      * @param loadBalanceStrategy
      */
     private void buildSubcribeResultCustomBody(RegisterMeta meta, SubcribeResultCustomBody subcribeResultCustomBody, LoadBalanceStrategy loadBalanceStrategy) {
 
-        LoadBalanceStrategy defaultBalanceStrategy = defaultRegistryServer.getRegistryServerConfig().getDefaultLoadBalanceStrategy();
-        List<RegisterMeta> registerMetas = new ArrayList<RegisterMeta>();
+        LoadBalanceStrategy defaultBalanceStrategy = defaultRegistry.getRegistryConfig().getDefaultLoadBalanceStrategy();
+        List<RegisterMeta> registerMetas = new ArrayList<>();
 
         registerMetas.add(meta);
-        subcribeResultCustomBody.setLoadBalanceStrategy(null == loadBalanceStrategy ? defaultBalanceStrategy : loadBalanceStrategy);
+        subcribeResultCustomBody.setLoadBalanceStrategy(loadBalanceStrategy == null ? defaultBalanceStrategy : loadBalanceStrategy);
         subcribeResultCustomBody.setRegisterMeta(registerMetas);
     }
 
-    private void pushMessageToConsumer(Transporter sendConsumerRemotingTrasnporter, String serviceName) throws RemotingSendRequestException,
-            RemotingTimeoutException, InterruptedException {
+    private void pushMessageToConsumer(Transporter sendConsumerRemotingTrasnporter, String serviceName)
+            throws RemotingSendRequestException, RemotingTimeoutException, InterruptedException {
         // 所有的订阅者的channel集合
         if (!subscriberChannels.isEmpty()) {
             for (Channel channel : subscriberChannels) {
                 if (isChannelSubscribeOnServiceMeta(serviceName, channel)) {
-                    Transporter remotingTransporter = this.defaultRegistryServer.getRemotingServer().invokeSync(channel,
-                            sendConsumerRemotingTrasnporter, 3000l);
+                    Transporter remotingTransporter = defaultRegistry.getServer().invokeSync(channel, sendConsumerRemotingTrasnporter, 3000L);
+
                     // 如果是ack返回是null说明是超时了，需要重新发送
                     if (remotingTransporter == null) {
                         logger.warn("push consumer message time out,need send again");
-                        MessageNonAck msgNonAck = new MessageNonAck(remotingTransporter, channel,serviceName);
+                        MessageNonAck msgNonAck = new MessageNonAck(remotingTransporter, channel, serviceName);
                         messagesNonAcks.add(msgNonAck);
                     }
                     // 如果消费者端消费者消费失败
                     AckCustomBody ackCustomBody = (AckCustomBody) remotingTransporter.getContent();
                     if (!ackCustomBody.isSuccess()) {
                         logger.warn("consumer fail handler this message");
-                        MessageNonAck msgNonAck = new MessageNonAck(remotingTransporter, channel,serviceName);
+                        MessageNonAck msgNonAck = new MessageNonAck(remotingTransporter, channel, serviceName);
                         messagesNonAcks.add(msgNonAck);
                     }
                 }
             }
         }
     }
-
 
 
     static class MessageNonAck {
@@ -175,7 +167,7 @@ public class RegistryConsumerManager {
         private final Transporter msg;
         private final Channel channel;
 
-        public MessageNonAck(Transporter msg, Channel channel,String serviceName) {
+        public MessageNonAck(Transporter msg, Channel channel, String serviceName) {
             this.msg = msg;
             this.channel = channel;
             this.serviceName = serviceName;
@@ -198,8 +190,6 @@ public class RegistryConsumerManager {
         public String getServiceName() {
             return serviceName;
         }
-
-
 
     }
 

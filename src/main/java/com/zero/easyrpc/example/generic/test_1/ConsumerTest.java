@@ -8,6 +8,7 @@ import com.zero.easyrpc.netty4.ClientConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -67,16 +68,16 @@ public class ConsumerTest {
 					logger.info("统计中");
 					Thread.sleep(10000);
 					
-					@SuppressWarnings("static-access")
-					ConcurrentMap<String, CopyOnWriteArrayList<ChannelGroup>> result = commonclient.getGroups();
-					if(result != null){
-						for(String serviceName:result.keySet()){
-							System.out.println(serviceName);
-							for(ChannelGroup channelGroup :result.get(serviceName)){
-								System.out.println(channelGroup.toString());
-							}
-						}
-					}
+//					@SuppressWarnings("static-access")
+//					Map<String, CopyOnWriteArrayList<ChannelGroup>> result = commonclient.get();
+//					if(result != null){
+//						for(String serviceName:result.keySet()){
+//							System.out.println(serviceName);
+//							for(ChannelGroup channelGroup :result.get(serviceName)){
+//								System.out.println(channelGroup.toString());
+//							}
+//						}
+//					}
 				} catch (Throwable t) {
 					logger.error("An exception has been caught while scanning the timeout acknowledges {}.", t);
 				}

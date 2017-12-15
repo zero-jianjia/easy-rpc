@@ -17,7 +17,7 @@ public class RegistryPersistRecord {
 
     private LoadBalanceStrategy balanceStrategy;
 
-    private List<PersistProviderInfo> providerInfos = new ArrayList<PersistProviderInfo>();
+    private List<PersistProviderInfo> providerInfos = new ArrayList<>();
 
     public RegistryPersistRecord() {
     }
@@ -71,8 +71,6 @@ public class RegistryPersistRecord {
         public void setIsReviewed(ServiceReviewState isReviewed) {
             this.isReviewed = isReviewed;
         }
-
-
     }
 
 }

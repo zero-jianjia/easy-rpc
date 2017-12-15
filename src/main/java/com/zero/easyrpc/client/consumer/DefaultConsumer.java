@@ -24,15 +24,16 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * Created by jianjia1 on 17/12/07.
  */
-public abstract class DefaultConsumer extends AbstractDefaultConsumer {
-
+public abstract class DefaultConsumer extends AbstractConsumer {
     private static final Logger logger = LoggerFactory.getLogger(DefaultConsumer.class);
 
     private ClientConfig registryClientConfig;
     private ClientConfig providerClientConfig;
     private ConsumerConfig consumerConfig;
-    protected Client registryNettyRemotingClient;
-    protected Client providerNettyRemotingClient;
+
+    protected Client registryNettyClient;
+    protected Client providerNettyClient;
+
     private DefaultConsumerRegistry defaultConsumerRegistry;
     private ConsumerManager consumerManager;
     private Channel registyChannel;
@@ -41,6 +42,7 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
         this.registryClientConfig = registryClientConfig;
         this.providerClientConfig = providerClientConfig;
         this.consumerConfig = consumerConfig;
+
         defaultConsumerRegistry = new DefaultConsumerRegistry(this);
         consumerManager = new ConsumerManager(this);
         initialize();
@@ -48,21 +50,20 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
 
     private void initialize() {
 
-        //因为服务消费端可以直连provider，所以当传递过来的与注册中心连接的配置文件为空的时候，可以不初始化registryNettyRemotingClient
-        if(null != this.registryClientConfig){
-            this.registryNettyRemotingClient = new Client(this.registryClientConfig);
+        //因为服务消费端可以直连provider，所以当传递过来的与注册中心连接的配置文件为空的时候，可以不初始化registryNettyClient
+        if (this.registryClientConfig != null) {
+            this.registryNettyClient = new Client(this.registryClientConfig);
             // 注册处理器
-            this.registerProcessor();
+            registerProcessor();
         }
 
-        this.providerNettyRemotingClient = new Client(this.providerClientConfig);
-
+        this.providerNettyClient = new Client(this.providerClientConfig);
     }
 
     private void registerProcessor() {
-        this.registryNettyRemotingClient.registerProcessor(Protocol.SUBCRIBE_RESULT, new DefaultConsumerRegistryProcessor(this), null);
-        this.registryNettyRemotingClient.registerProcessor(Protocol.SUBCRIBE_SERVICE_CANCEL, new DefaultConsumerRegistryProcessor(this), null);
-        this.registryNettyRemotingClient.registerProcessor(Protocol.CHANGE_LOADBALANCE, new DefaultConsumerRegistryProcessor(this), null);
+        this.registryNettyClient.registerProcessor(Protocol.SUBCRIBE_RESULT, new DefaultRegistryProcessor(this), null);
+        this.registryNettyClient.registerProcessor(Protocol.SUBCRIBE_SERVICE_CANCEL, new DefaultRegistryProcessor(this), null);
+        this.registryNettyClient.registerProcessor(Protocol.CHANGE_LOADBALANCE, new DefaultRegistryProcessor(this), null);
     }
 
     @Override
@@ -77,13 +78,11 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
             @Override
             public void start() {
                 subcribeService(service, new NotifyListener() {
-
                     @Override
                     public void notify(RegisterMeta registerMeta, NotifyEvent event) {
-
-                        // host
                         String remoteHost = registerMeta.getAddress().getHost();
-                        // port vip服务 port端口号-2
+
+                        // port （ vip服务 port端口号-2 ）
                         int remotePort = registerMeta.isVIPService() ? (registerMeta.getAddress().getPort() - 2) : registerMeta.getAddress().getPort();
 
                         final ChannelGroup group = group(new UnresolvedAddress(remoteHost, remotePort));
@@ -96,33 +95,44 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
                                 group.setWeight(registerMeta.getWeight());
 
                                 for (int i = 0; i < connCount; i++) {
-
                                     try {
-                                        // 所有的consumer与provider之间的链接不进行短线重连操作
-                                        DefaultConsumer.this.getProviderNettyRemotingClient().setReconnect(false);
-                                        DefaultConsumer.this.getProviderNettyRemotingClient().getBootstrap()
-                                                .connect(ConnectionUtils.string2SocketAddress(remoteHost + ":" + remotePort)).addListener(new ChannelFutureListener() {
+                                        // 所有的consumer与provider之间的链接不进行断线重连操作
+                                        DefaultConsumer.this.getProviderNettyClient().setReconnect(false);
+                                        DefaultConsumer.this.getProviderNettyClient().getBootstrap()
+                                                .connect(ConnectionUtils.string2SocketAddress(remoteHost + ":" + remotePort))
+                                                .addListener(new ChannelFutureListener() {
+                                                    @Override
+                                                    public void operationComplete(ChannelFuture future) throws Exception {
+                                                        group.add(future.channel());
+                                                        onSucceed(signalNeeded.getAndSet(false));
+                                                    }
 
-                                            @Override
-                                            public void operationComplete(ChannelFuture future) throws Exception {
-                                                group.add(future.channel());
-                                                onSucceed(signalNeeded.getAndSet(false));
-                                            }
-
-                                        });
+                                                });
                                     } catch (Exception e) {
                                         logger.error("connection provider host [{}] and port [{}] occor exception [{}]", remoteHost, remotePort, e.getMessage());
                                     }
                                 }
-                            }else{
+                            } else {
                                 onSucceed(signalNeeded.getAndSet(false));
                             }
-                            addChannelGroup(service,group);
-                        }else if(event == NotifyEvent.CHILD_REMOVED){
+                            addChannelGroup(service, group);
+                        } else if (event == NotifyEvent.CHILD_REMOVED) {
                             removedIfAbsent(service, group);
                         }
                     }
                 });
+            }
+
+            private void onSucceed(boolean doSignal) {
+                if (doSignal) {
+                    final ReentrantLock l = lock;
+                    l.lock();
+                    try {
+                        notifyCondition.signalAll();
+                    } finally {
+                        l.unlock();
+                    }
+                }
             }
 
             @Override
@@ -132,8 +142,8 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
                 }
                 boolean available = false;
                 long start = System.nanoTime();
-                final ReentrantLock _look = lock;
-                _look.lock();
+                final ReentrantLock l = lock;
+                l.lock();
                 try {
                     while (!isServiceAvailable(service)) {
                         signalNeeded.set(true);
@@ -147,35 +157,23 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
                 } catch (InterruptedException e) {
                     JUnsafe.throwException(e);
                 } finally {
-                    _look.unlock();
+                    l.unlock();
                 }
                 return available;
             }
 
             private boolean isServiceAvailable(String service) {
                 CopyOnWriteArrayList<ChannelGroup> list = DefaultConsumer.super.getChannelGroupByServiceName(service);
-                if(list == null){
+                if (list == null) {
                     return false;
-                }else{
-                    for(ChannelGroup channelGroup : list){
-                        if(channelGroup.isAvailable()){
+                } else {
+                    for (ChannelGroup channelGroup : list) {
+                        if (channelGroup.isAvailable()) {
                             return true;
                         }
                     }
                 }
                 return false;
-            }
-
-            private void onSucceed(boolean doSignal) {
-                if (doSignal) {
-                    final ReentrantLock _look = lock;
-                    _look.lock();
-                    try {
-                        notifyCondition.signalAll();
-                    } finally {
-                        _look.unlock();
-                    }
-                }
             }
 
         };
@@ -186,7 +184,7 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
     @Override
     public void subcribeService(String subcribeServices, NotifyListener listener) {
         if (subcribeServices != null) {
-            this.defaultConsumerRegistry.subcribeService(subcribeServices,listener);
+            defaultConsumerRegistry.subcribeService(subcribeServices, listener);
         }
     }
 
@@ -202,9 +200,8 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
 
     @Override
     public Channel directGetProviderByChannel(UnresolvedAddress address) throws InterruptedException {
-        return this.providerNettyRemotingClient.getAndCreateChannel(address.getHost()+":"+address.getPort());
+        return this.providerNettyClient.getAndCreateChannel(address.getHost() + ":" + address.getPort());
     }
-
 
 
     @Override
@@ -212,14 +209,14 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
 
         logger.info("######### consumer start.... #########");
         // 如果连接注册中心的client初始化成功的情况下，且连接注册中心的地址不为空的时候去尝试连接注册中心
-        if (null != this.registryClientConfig && null != this.registryNettyRemotingClient) {
-            this.registryNettyRemotingClient.start();
+        if (null != this.registryClientConfig && null != this.registryNettyClient) {
+            this.registryNettyClient.start();
             // 获取到与注册中心集群的一个健康的的Netty 长连接的channel
             getOrUpdateHealthyChannel();
         }
 
-        this.providerNettyRemotingClient.setReconnect(false);
-        this.providerNettyRemotingClient.start();
+        this.providerNettyClient.setReconnect(false);
+        this.providerNettyClient.start();
 
     }
 
@@ -227,10 +224,11 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
     public void getOrUpdateHealthyChannel() {
 
         //获取到注册中心的地址
-        String addresses = this.registryClientConfig.getDefaultAddress();
+        String addresses = registryClientConfig.getDefaultAddress();
 
-        if (registyChannel != null && registyChannel.isActive() && registyChannel.isWritable())
+        if (registyChannel != null && registyChannel.isActive() && registyChannel.isWritable()) {
             return;
+        }
 
         if (addresses == null || "".equals(addresses)) {
             logger.error("registry address is empty");
@@ -238,14 +236,13 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
         }
 
         //与注册中心连接的时候重试次数
-        int retryConnectionTimes = this.consumerConfig.getRetryConnectionRegistryTimes();
+        int retryConnectionTimes = consumerConfig.getRetryConnectionRegistryTimes();
         //连接给每次注册中心的时候最大的超时时间
-        long maxTimeout = this.consumerConfig.getMaxRetryConnectionRegsitryTime();
+        long maxTimeout = consumerConfig.getMaxRetryConnectionRegsitryTime();
 
         String[] adds = addresses.split(",");
 
         for (int i = 0; i < adds.length; i++) {
-
             if (registyChannel != null && registyChannel.isActive() && registyChannel.isWritable())
                 return;
 
@@ -254,33 +251,30 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
             final long beginTimestamp = System.currentTimeMillis();
             long endTimestamp = beginTimestamp;
 
-            int times = 0;
-
             //当重试次数小于最大次数且每个实例重试的时间小于最大的时间的时候，不断重试
-            for (; times < retryConnectionTimes && (endTimestamp - beginTimestamp) < maxTimeout; times++) {
+            for (int times = 0; times < retryConnectionTimes && (endTimestamp - beginTimestamp) < maxTimeout; times++) {
                 try {
-                    Channel channel = registryNettyRemotingClient.createChannel(currentAddress);
+                    Channel channel = registryNettyClient.createChannel(currentAddress);
                     if (channel != null && channel.isActive() && channel.isWritable()) {
-                        this.registyChannel = channel;
+                        registyChannel = channel;
                         break;
                     } else {
-                        continue;
+                        TimeUnit.MILLISECONDS.sleep(1 << times);
                     }
                 } catch (InterruptedException e) {
                     logger.warn("connection registry center [{}] fail", currentAddress);
                     endTimestamp = System.currentTimeMillis();
-                    continue;
                 }
             }
         }
     }
 
-    public Client getRegistryNettyRemotingClient() {
-        return registryNettyRemotingClient;
+    public Client getRegistryNettyClient() {
+        return registryNettyClient;
     }
 
-    public void setRegistryNettyRemotingClient(Client registryNettyRemotingClient) {
-        this.registryNettyRemotingClient = registryNettyRemotingClient;
+    public void setRegistryNettyClient(Client registryNettyClient) {
+        this.registryNettyClient = registryNettyClient;
     }
 
     public Channel getRegistyChannel() {
@@ -315,12 +309,12 @@ public abstract class DefaultConsumer extends AbstractDefaultConsumer {
         this.consumerManager = consumerManager;
     }
 
-    public Client getProviderNettyRemotingClient() {
-        return providerNettyRemotingClient;
+    public Client getProviderNettyClient() {
+        return providerNettyClient;
     }
 
-    public void setProviderNettyRemotingClient(Client providerNettyRemotingClient) {
-        this.providerNettyRemotingClient = providerNettyRemotingClient;
+    public void setProviderNettyClient(Client providerNettyClient) {
+        this.providerNettyClient = providerNettyClient;
     }
 
     public DefaultConsumerRegistry getDefaultConsumerRegistry() {

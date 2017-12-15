@@ -30,6 +30,11 @@ import java.util.concurrent.*;
 public class DefaultProvider implements Provider {
     private static final Logger logger = LoggerFactory.getLogger(DefaultProvider.class);
 
+    private int exposePort;            //提供RPC服务的端口
+    private String registryAddress;    //注册中心的地址
+    private String monitorAddress;     //监控中心的地址
+    private Object[] obj;              //要提供的服务
+
     private Client nettyClient;          // 用于连接monitor和注册中心的Client
     private Server nettyRPCServer;       // 提供PRC服务的Server，等待被Consumer连接
     private Server nettyVIPRPCServer;    // 提供PRC服务的Server，等待被Consumer VIP连接
@@ -45,20 +50,13 @@ public class DefaultProvider implements Provider {
     private ExecutorService rpcVipExecutor;          // RPC调用VIP的核心线程执行器
 
 
-    /********* 要发布的服务的信息 ***********/
-    private List<Transporter> publishedServiceList;
-
-    /************ 全局发布的信息 ************/
-    private Map<String, PublishServiceCustomBody> globalPublishService = new ConcurrentHashMap<>();
-
-    private String registryAddress;//注册中心的地址
-    private int exposePort;//提供RPC服务的端口
-    private String monitorAddress;//监控中心的地址
-    private Object[] obj;//要提供的服务
-
     // 当前provider端状态是否健康，也就是说如果注册宕机后，该provider端的实例信息是失效，这是需要重新发送注册信息,因为默认状态下start就是发送，
     // 只有channel inactive的时候说明短线了，需要重新发布信息
     private boolean providerStateIsHealthy = true;
+
+    private List<Transporter> publishedServiceList; //发布的服务的信息列表
+
+    private Map<String, PublishServiceCustomBody> globalPublishService = new ConcurrentHashMap<>(); //全局发布的信息
 
     // 定时任务执行器
     // 做一些定时校验的活动和操作。比如定时检查监控中心的是否健康，定时发送一些统计的数据给监控中心，定时重发那些发给注册中心失败的注册信息

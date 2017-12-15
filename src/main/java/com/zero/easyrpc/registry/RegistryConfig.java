@@ -1,4 +1,4 @@
-package com.zero.easyrpc.registry.base;
+package com.zero.easyrpc.registry;
 
 import com.zero.easyrpc.common.loadbalance.LoadBalanceStrategy;
 import com.zero.easyrpc.common.rpc.ServiceReviewState;
@@ -9,16 +9,13 @@ import java.io.File;
  * 注册中心的一些基本配置文件
  * Created by jianjia1 on 17/12/07.
  */
-public class RegistryServerConfig {
-
+public class RegistryConfig {
     //持久化保存的位置
     private String storePathRootDir = System.getProperty("user.home") + File.separator + "test" + File.separator + "serviceInfo.json";
-    //每个多久时间刷盘到硬盘上，默认30s
-    private int persistTime = 30;
-    //默认的负载均衡策略
+
+    private int persistInterval = 30; //每个多久时间刷盘到硬盘上，默认30s
     private LoadBalanceStrategy defaultLoadBalanceStrategy = LoadBalanceStrategy.WEIGHTINGRANDOM;
-    //默认的审核状态，默认状态是未审核，测试的时候可以修改成审核通过
-    private ServiceReviewState defaultReviewState = ServiceReviewState.HAS_NOT_REVIEWED;
+    private ServiceReviewState defaultReviewState = ServiceReviewState.HAS_NOT_REVIEWED; //默认的审核状态，默认是未审核
 
     public String getStorePathRootDir() {
         return storePathRootDir;
@@ -28,12 +25,12 @@ public class RegistryServerConfig {
         this.storePathRootDir = storePathRootDir;
     }
 
-    public int getPersistTime() {
-        return persistTime;
+    public int getPersistInterval() {
+        return persistInterval;
     }
 
-    public void setPersistTime(int persistTime) {
-        this.persistTime = persistTime;
+    public void setPersistInterval(int persistInterval) {
+        this.persistInterval = persistInterval;
     }
 
     public LoadBalanceStrategy getDefaultLoadBalanceStrategy() {

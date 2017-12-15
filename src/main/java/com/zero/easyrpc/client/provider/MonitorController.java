@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * provider 端连接monitor端的控制端
@@ -25,7 +24,7 @@ public class MonitorController {
 
     private DefaultProvider defaultProvider;
 
-    private Channel monitorChannel;    // 连接monitor端的channel
+    private Channel monitorChannel;   // 连接monitor端的channel
 
     public MonitorController(DefaultProvider defaultProvider) {
         this.defaultProvider = defaultProvider;
@@ -53,7 +52,7 @@ public class MonitorController {
             return;
         }
 
-        Map<String, Meter> metricsMap = ServiceMeterManager.getGlobalMeterManager();
+        Map<String, Meter> metricsMap = ServiceMeterManager.getMeterMap();
         if (metricsMap != null) {
             List<MetricsReporter> reporters = new ArrayList<>();
             List<Meter> meters = new ArrayList<>();

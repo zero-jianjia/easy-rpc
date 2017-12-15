@@ -5,7 +5,6 @@ import java.util.List;
 
 /**
  * 
- * @author BazingaLyn
  * @description 堆copy的测试
  * @time
  * @modifytime

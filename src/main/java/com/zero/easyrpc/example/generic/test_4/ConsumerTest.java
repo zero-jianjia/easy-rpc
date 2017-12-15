@@ -6,11 +6,7 @@ import com.zero.easyrpc.client.consumer.proxy.ProxyFactory;
 import com.zero.easyrpc.common.utils.UnresolvedAddress;
 
 /**
- * 
- * @author BazingaLyn
  * @description 测试consumer直连provider，进行服务调用
- * @time
- * @modifytime
  */
 public class ConsumerTest {
 	

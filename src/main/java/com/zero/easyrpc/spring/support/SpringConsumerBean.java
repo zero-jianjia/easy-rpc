@@ -10,12 +10,11 @@ import org.springframework.beans.factory.InitializingBean;
 
 /**
  * 
- * @author BazingaLyn
  * @description 消费端对spring的支持
  * @time 2016年10月17日
  * @modifytime
  */
-public class LaopopoSpringConsumerBean<T> implements FactoryBean<T>, InitializingBean {
+public class SpringConsumerBean<T> implements FactoryBean<T>, InitializingBean {
 	
 	
 	private transient T proxy;

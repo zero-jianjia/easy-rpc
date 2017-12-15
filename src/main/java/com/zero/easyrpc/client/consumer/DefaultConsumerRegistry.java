@@ -9,6 +9,7 @@ import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -20,7 +21,7 @@ public class DefaultConsumerRegistry {
 
     private DefaultConsumer defaultConsumer;
 
-    private ConcurrentHashMap<String, NotifyListener> serviceMatchedNotifyListener = new ConcurrentHashMap<String, NotifyListener>();
+    private Map<String, NotifyListener> serviceMatchedNotifyListener = new ConcurrentHashMap<>();
 
     private long timeout;
 
@@ -30,18 +31,17 @@ public class DefaultConsumerRegistry {
     }
 
     public void subcribeService(String serviceName, NotifyListener listener) {
-
-        if(listener != null){
+        if (listener != null) {
             serviceMatchedNotifyListener.put(serviceName, listener);
         }
 
-        if (this.defaultConsumer.getRegistyChannel() == null) {
-            this.defaultConsumer.getOrUpdateHealthyChannel();
+        if (defaultConsumer.getRegistyChannel() == null) {
+           defaultConsumer.getOrUpdateHealthyChannel();
         }
 
-        if (this.defaultConsumer.getRegistyChannel() != null) {
+        if (defaultConsumer.getRegistyChannel() != null) {
 
-            logger.info("registry center channel is [{}]", this.defaultConsumer.getRegistyChannel());
+            logger.info("registry center channel is [{}]", defaultConsumer.getRegistyChannel());
 
             SubscribeRequestCustomBody body = new SubscribeRequestCustomBody();
             body.setServiceName(serviceName);
@@ -66,17 +66,16 @@ public class DefaultConsumerRegistry {
 
     private Transporter sendKernelSubscribeInfo(Channel registyChannel, Transporter remotingTransporter, long timeout)
             throws RemotingTimeoutException, RemotingSendRequestException, InterruptedException {
-        return this.defaultConsumer.getRegistryNettyRemotingClient().invokeSyncImpl(this.defaultConsumer.getRegistyChannel(), remotingTransporter, timeout);
+        return this.defaultConsumer.getRegistryNettyClient().invokeSyncImpl(this.defaultConsumer.getRegistyChannel(), remotingTransporter, timeout);
     }
 
-    public ConcurrentHashMap<String, NotifyListener> getServiceMatchedNotifyListener() {
+    public Map<String, NotifyListener> getServiceMatchedNotifyListener() {
         return serviceMatchedNotifyListener;
     }
 
     public void setServiceMatchedNotifyListener(ConcurrentHashMap<String, NotifyListener> serviceMatchedNotifyListener) {
         this.serviceMatchedNotifyListener = serviceMatchedNotifyListener;
     }
-
 
 
 }

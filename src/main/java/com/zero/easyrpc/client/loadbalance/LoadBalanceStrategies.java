@@ -9,26 +9,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 负载均衡算法
- * Created by jianjia1 on 17/12/07.
  */
 public enum LoadBalanceStrategies {
 
     //随机
-    RANDOMSTRATEGIES(new LoadBalance(){
-
+    RANDOM(new LoadBalance(){
         @Override
         public ChannelGroup select(CopyOnWriteArrayList<ChannelGroup> arrayList) {
             Random random = new Random();
             int randomPos = random.nextInt(arrayList.size());
-
             return arrayList.get(randomPos);
         }
-
     }),
 
     //加权随机
-    WEIGHTRANDOMSTRATEGIES(new LoadBalance(){
-
+    WEIGHTRANDOM(new LoadBalance(){
         @Override
         public ChannelGroup select(CopyOnWriteArrayList<ChannelGroup> arrayList) {
             int count = arrayList.size();
@@ -108,7 +103,6 @@ public enum LoadBalanceStrategies {
     }
 
     interface LoadBalance {
-
         ChannelGroup select(CopyOnWriteArrayList<ChannelGroup> arrayList);
     }
 

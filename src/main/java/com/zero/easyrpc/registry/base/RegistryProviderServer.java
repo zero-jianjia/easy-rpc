@@ -11,7 +11,6 @@ import io.netty.channel.Channel;
  */
 public interface RegistryProviderServer {
 
-
     /**
      * 处理provider发送过来的注册信息
      * @param remotingTransporter 里面的CommonCustomBody 是#PublishServiceCustomBody

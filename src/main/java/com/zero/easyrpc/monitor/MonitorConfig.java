@@ -4,10 +4,7 @@ import java.io.File;
 
 /**
  * 
- * @author BazingaLyn
  * @description monitor端的一些参数配置
- * @time 2016年9月7日
- * @modifytime
  */
 public class MonitorConfig {
 	

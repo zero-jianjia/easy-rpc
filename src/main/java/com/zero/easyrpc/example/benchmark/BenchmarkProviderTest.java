@@ -8,10 +8,7 @@ import com.zero.easyrpc.netty4.ServerConfig;
 
 /**
  * 
- * @author BazingaLyn
  * @description 性能测试的provider端
- * @time
- * @modifytime
  */
 public class BenchmarkProviderTest {
 

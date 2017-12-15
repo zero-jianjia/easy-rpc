@@ -12,7 +12,6 @@ import io.netty.channel.Channel;
  * Created by jianjia1 on 17/12/07.
  */
 public interface Consumer {
-
     /**
      * 远程调用方法
      * @param serviceName 远程调用的服务名
@@ -24,13 +23,13 @@ public interface Consumer {
 
     /**
      *
-     * @param serviceName
      * @param timeout 调用超时时间
+     * @param serviceName
      * @param args
      * @return
      * @throws Throwable
      */
-    Object call(String serviceName,long timeout,Object... args) throws Throwable;
+    Object call(long timeout, String serviceName, Object... args) throws Throwable;
 
     /**
      * 在当服务端向注册中心订阅服务的时候进行管理
@@ -63,10 +62,10 @@ public interface Consumer {
     /**
      * 根据一个服务名，匹配用户给这个服务设定的负载均衡策略，根据这个负载均衡算法去找到这个服务对应的与提供者的Channel
      * @param serviceName
-     * @param _balanceStrategy
+     * @param balanceStrategy
      * @return
      */
-    ChannelGroup loadBalance(String serviceName, LoadBalanceStrategy _balanceStrategy);
+    ChannelGroup loadBalance(String serviceName, LoadBalanceStrategy balanceStrategy);
 
     /**
      * 当注册中心告之某个服务多了一个提供者之后，我们需要将其更新
@@ -136,6 +135,4 @@ public interface Consumer {
          */
         boolean waitForAvailable(long timeoutMillis);
     }
-
-
 }

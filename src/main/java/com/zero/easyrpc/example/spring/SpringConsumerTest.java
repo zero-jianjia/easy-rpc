@@ -5,10 +5,6 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 /**
  * 
- * @author BazingaLyn
- * @description
- * @time 2016年10月18日
- * @modifytime
  */
 public class SpringConsumerTest {
 	

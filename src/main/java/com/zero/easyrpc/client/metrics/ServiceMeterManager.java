@@ -1,14 +1,14 @@
 package com.zero.easyrpc.client.metrics;
 
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * Created by jianjia1 on 17/12/04.
  */
 public class ServiceMeterManager {
     //key是serviceName
-    private static ConcurrentMap<String, Meter> globalMeterManager = new ConcurrentHashMap<String, Meter>();
+    private static Map<String, Meter> meterMap = new ConcurrentHashMap<>();
 
     /**
      * 计算某个服务的调用成功率，四舍五入到个位数
@@ -17,7 +17,7 @@ public class ServiceMeterManager {
      */
     public static Integer calcServiceSuccessRate(String serviceName) {
 
-        Meter meter = globalMeterManager.get(serviceName);
+        Meter meter = meterMap.get(serviceName);
 
         if (meter == null) {
             return 0;
@@ -32,7 +32,6 @@ public class ServiceMeterManager {
         }
 
         return (100 * (callCount - failCount) / callCount);
-
     }
 
 
@@ -41,15 +40,8 @@ public class ServiceMeterManager {
      * @param serviceName
      */
     public static void incrementCallTimes(String serviceName) {
-
-        Meter meter = globalMeterManager.get(serviceName);
-
-        if (meter == null) {
-            meter = new Meter(serviceName);
-            globalMeterManager.put(serviceName, meter);
-        }
+        Meter meter = meterMap.computeIfAbsent(serviceName, key -> new Meter(serviceName));
         meter.getCallCount().incrementAndGet();
-
     }
 
     /**
@@ -57,13 +49,7 @@ public class ServiceMeterManager {
      * @param serviceName
      */
     public static void incrementFailTimes(String serviceName) {
-
-        Meter meter = globalMeterManager.get(serviceName);
-
-        if (meter == null) {
-            meter = new Meter(serviceName);
-            globalMeterManager.put(serviceName, meter);
-        }
+        Meter meter = meterMap.computeIfAbsent(serviceName, key -> new Meter(serviceName));
         meter.getFailedCount().incrementAndGet();
     }
 
@@ -72,13 +58,7 @@ public class ServiceMeterManager {
      * @param serviceName
      */
     public static void incrementTotalTime(String serviceName, Long timecost) {
-
-        Meter meter = globalMeterManager.get(serviceName);
-
-        if (meter == null) {
-            meter = new Meter(serviceName);
-            globalMeterManager.put(serviceName, meter);
-        }
+        Meter meter = meterMap.computeIfAbsent(serviceName, key -> new Meter(serviceName));
         meter.getTotalCallTime().addAndGet(timecost);
     }
 
@@ -88,13 +68,7 @@ public class ServiceMeterManager {
      * @param byteSize
      */
     public static void incrementRequestSize(String serviceName, int byteSize) {
-
-        Meter meter = globalMeterManager.get(serviceName);
-
-        if (meter == null) {
-            meter = new Meter(serviceName);
-            globalMeterManager.put(serviceName, meter);
-        }
+        Meter meter = meterMap.computeIfAbsent(serviceName, key -> new Meter(serviceName));
         meter.getTotalRequestSize().addAndGet(byteSize);
     }
 
@@ -102,9 +76,7 @@ public class ServiceMeterManager {
     public static void scheduledSendReport() {
     }
 
-    public static ConcurrentMap<String, Meter> getGlobalMeterManager() {
-        return globalMeterManager;
+    public static Map<String, Meter> getMeterMap() {
+        return meterMap;
     }
-
-
 }

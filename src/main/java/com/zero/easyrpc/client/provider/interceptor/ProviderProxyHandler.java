@@ -18,7 +18,7 @@ public class ProviderProxyHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(ProviderProxyHandler.class);
 
-    private final CopyOnWriteArrayList<ProviderInterceptor> interceptors = new CopyOnWriteArrayList<ProviderInterceptor>();
+    private final CopyOnWriteArrayList<ProviderInterceptor> interceptors = new CopyOnWriteArrayList<>();
 
     @RuntimeType
     public Object invoke(@SuperCall Callable<Object> superMethod,

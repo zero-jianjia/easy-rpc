@@ -6,9 +6,7 @@ import static com.zero.easyrpc.common.serialization.SerializerFactory.serializer
 
 /**
  * 
- * @author BazingaLyn
- * @description 
- * 
+ *
  * 1)使用protoStuff序列化测试
  * 修改org.laopopo.common.serialization.Serializer中的内容为：
  * org.laopopo.common.serialization.proto.ProtoStuffSerializer

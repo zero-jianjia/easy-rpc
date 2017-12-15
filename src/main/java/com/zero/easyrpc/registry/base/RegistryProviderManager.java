@@ -8,9 +8,11 @@ import com.zero.easyrpc.common.metrics.ServiceMetrics;
 import com.zero.easyrpc.common.protocal.Protocol;
 import com.zero.easyrpc.common.rpc.RegisterMeta;
 import com.zero.easyrpc.common.rpc.ServiceReviewState;
+import com.zero.easyrpc.common.serialization.SerializerFactory;
 import com.zero.easyrpc.common.transport.body.*;
 import com.zero.easyrpc.common.utils.PersistUtils;
 import com.zero.easyrpc.netty4.Transporter;
+import com.zero.easyrpc.registry.DefaultRegistry;
 import com.zero.easyrpc.registry.model.RegistryPersistRecord;
 import com.zero.easyrpc.netty4.util.ConnectionUtils;
 import io.netty.channel.Channel;
@@ -29,39 +31,39 @@ import static com.zero.easyrpc.common.serialization.SerializerFactory.serializer
 
 
 /**
- * 注册服务中心端的provider侧的管理
+ * 注册服务中心端的provider的控制器
  * Created by jianjia1 on 17/12/07.
  */
 public class RegistryProviderManager implements RegistryProviderServer {
-
     private static final Logger logger = LoggerFactory.getLogger(RegistryProviderManager.class);
+
+    private DefaultRegistry defaultRegistry;
 
     private static final AttributeKey<ConcurrentSet<String>> S_SUBSCRIBE_KEY = AttributeKey.valueOf("server.subscribed");
     private static final AttributeKey<ConcurrentSet<RegisterMeta>> S_PUBLISH_KEY = AttributeKey.valueOf("server.published");
 
-    private DefaultRegistryServer defaultRegistryServer;
-
     // 某个服务
-    private final ConcurrentMap<String, ConcurrentMap<RegisterMeta.Address, RegisterMeta>> globalRegisterInfoMap = new ConcurrentHashMap<String, ConcurrentMap<RegisterMeta.Address, RegisterMeta>>();
+    private final ConcurrentMap<String, ConcurrentMap<RegisterMeta.Address, RegisterMeta>> globalRegisterInfoMap = new ConcurrentHashMap<>();
     // 指定节点都注册了哪些服务
-    private final ConcurrentMap<RegisterMeta.Address, ConcurrentSet<String>> globalServiceMetaMap = new ConcurrentHashMap<RegisterMeta.Address, ConcurrentSet<String>>();
+    private final ConcurrentMap<RegisterMeta.Address, ConcurrentSet<String>> globalServiceMetaMap = new ConcurrentHashMap<>();
     // 某个服务 订阅它的消费者的channel集合
-    private final ConcurrentMap<String, ConcurrentSet<Channel>> globalConsumerMetaMap = new ConcurrentHashMap<String, ConcurrentSet<Channel>>();
+    private final ConcurrentMap<String, ConcurrentSet<Channel>> globalConsumerMetaMap = new ConcurrentHashMap<>();
     // 提供者某个地址对应的channel
-    private final ConcurrentMap<RegisterMeta.Address, Channel> globalProviderChannelMetaMap = new ConcurrentHashMap<RegisterMeta.Address, Channel>();
+    private final ConcurrentMap<RegisterMeta.Address, Channel> globalProviderChannelMetaMap = new ConcurrentHashMap<>();
     //每个服务的历史记录
-    private final ConcurrentMap<String, RegistryPersistRecord> historyRecords = new ConcurrentHashMap<String, RegistryPersistRecord>();
+    private final Map<String, RegistryPersistRecord> historyRecords = new ConcurrentHashMap<>();
     //每个服务对应的负载策略
-    private final ConcurrentMap<String, LoadBalanceStrategy> globalServiceLoadBalance = new ConcurrentHashMap<String, LoadBalanceStrategy>();
+    private final ConcurrentMap<String, LoadBalanceStrategy> globalServiceLoadBalance = new ConcurrentHashMap<>();
 
-    public RegistryProviderManager(DefaultRegistryServer defaultRegistryServer) {
-        this.defaultRegistryServer = defaultRegistryServer;
+    public RegistryProviderManager(DefaultRegistry defaultRegistry) {
+        this.defaultRegistry = defaultRegistry;
     }
 
-    public Transporter handleManager(Transporter request, Channel channel) throws RemotingSendRequestException, RemotingTimeoutException,
-            InterruptedException {
 
-        ManagerServiceCustomBody managerServiceCustomBody = serializerImpl().readObject(request.getBytes(), ManagerServiceCustomBody.class);
+    public Transporter handleManager(Transporter request, Channel channel)
+            throws RemotingSendRequestException, RemotingTimeoutException, InterruptedException {
+
+        ManagerServiceCustomBody managerServiceCustomBody = SerializerFactory.serializerImpl().readObject(request.getBytes(), ManagerServiceCustomBody.class);
 
         switch (managerServiceCustomBody.getManagerServiceRequestType()) {
             case REVIEW:
@@ -83,24 +85,24 @@ public class RegistryProviderManager implements RegistryProviderServer {
 
     /**
      * 处理provider服务注册
-     *
      * @throws InterruptedException
      * @throws RemotingTimeoutException
      * @throws RemotingSendRequestException
      */
     @Override
-    public Transporter handlerRegister(Transporter remotingTransporter, Channel channel) throws RemotingSendRequestException,
-            RemotingTimeoutException, InterruptedException {
+    public Transporter handlerRegister(Transporter transporter, Channel channel)
+            throws RemotingSendRequestException, RemotingTimeoutException, InterruptedException {
 
-        // 准备好ack信息返回个provider，悲观主义，默认返回失败ack，要求provider重新发送请求
-        AckCustomBody ackCustomBody = new AckCustomBody(remotingTransporter.getRequestId(), false);
+        // 准备好ack信息返回个provider，默认返回失败ack，要求provider重新发送请求
+        AckCustomBody ackCustomBody = new AckCustomBody(transporter.getRequestId(), false);
+
         Transporter responseTransporter = Transporter.createResponseTransporter(Protocol.ACK, ackCustomBody,
-                remotingTransporter.getRequestId());
+                transporter.getRequestId());
 
         // 接收到主体信息
-        PublishServiceCustomBody publishServiceCustomBody = serializerImpl().readObject(remotingTransporter.getBytes(), PublishServiceCustomBody.class);
+        PublishServiceCustomBody publishServiceCustomBody = SerializerFactory.serializerImpl().readObject(transporter.getBytes(), PublishServiceCustomBody.class);
 
-        RegisterMeta meta = RegisterMeta.createRegiserMeta(publishServiceCustomBody,channel);
+        RegisterMeta meta = RegisterMeta.createRegiserMeta(publishServiceCustomBody, channel);
 
         if (logger.isDebugEnabled()) {
             logger.info("Publish [{}] on channel[{}].", meta, channel);
@@ -109,41 +111,40 @@ public class RegistryProviderManager implements RegistryProviderServer {
         // channel上打上该服务的标记 方便当channel inactive的时候，直接从channel上拿到标记的属性，通知
         attachPublishEventOnChannel(meta, channel);
 
-        // 一个服务的最小单元，也是确定一个服务的最小单位
         final String serviceName = meta.getServiceName();
         // 找出提供此服务的全部地址和该服务在该地址下的审核情况
-        ConcurrentMap<RegisterMeta.Address, RegisterMeta> maps = this.getRegisterMeta(serviceName);
+        ConcurrentMap<RegisterMeta.Address, RegisterMeta> maps = getRegisterMeta(serviceName);
 
         synchronized (globalRegisterInfoMap) {
             //历史记录中的所有服务的持久化的信息记录
-            ConcurrentMap<String, RegistryPersistRecord> concurrentMap = historyRecords;
+            Map<String, RegistryPersistRecord> tempHistoryRecordMap = historyRecords;
 
             // 获取到这个地址可能以前注册过的注册信息
             RegisterMeta existRegiserMeta = maps.get(meta.getAddress());
 
             // 如果等于空，则说明以前没有注册过 这就需要从历史记录中将某些服务以前注册审核的信息恢复一下记录
-            if (null == existRegiserMeta) {
+            if (existRegiserMeta == null) {
 
-                RegistryPersistRecord persistRecord = concurrentMap.get(serviceName);
+                RegistryPersistRecord persistRecord = tempHistoryRecordMap.get(serviceName);
                 //如果历史记录中没有记录该信息，也就说持久化中没有记录到该信息的时候，就需要构造默认的持久化信息
-                if(null == persistRecord ||!isContainChildrenInfo(persistRecord,meta.getAddress())){
+                if (persistRecord == null || !isContainChildrenInfo(persistRecord, meta.getAddress())) {
 
                     persistRecord = new RegistryPersistRecord();
-                    persistRecord.setServiceName(serviceName);															 //持久化的服务名
-                    persistRecord.setBalanceStrategy(LoadBalanceStrategy.WEIGHTINGRANDOM);  							 //默认的负载均衡的策略
+                    persistRecord.setServiceName(serviceName);            //持久化的服务名
+                    persistRecord.setBalanceStrategy(LoadBalanceStrategy.WEIGHTINGRANDOM);   //默认的负载均衡的策略
 
                     RegistryPersistRecord.PersistProviderInfo providerInfo = new RegistryPersistRecord.PersistProviderInfo();
-                    providerInfo.setAddress(meta.getAddress());															 //服务提供者的地址
-                    providerInfo.setIsReviewed(defaultRegistryServer.getRegistryServerConfig().getDefaultReviewState()); //服务默认是未审核
+                    providerInfo.setAddress(meta.getAddress());    //服务提供者的地址
+                    providerInfo.setIsReviewed(defaultRegistry.getRegistryConfig().getDefaultReviewState());   //服务默认是未审核
                     persistRecord.getProviderInfos().add(providerInfo);
 
-                    concurrentMap.put(serviceName, persistRecord);
+                    tempHistoryRecordMap.put(serviceName, persistRecord);
                 }
 
                 //循环该服务的所有服务提供者实例的信息，获取到当前实例的审核状态，设置好meta的审核信息
-                for(RegistryPersistRecord.PersistProviderInfo providerInfo:persistRecord.getProviderInfos()){
+                for (RegistryPersistRecord.PersistProviderInfo providerInfo : persistRecord.getProviderInfos()) {
 
-                    if(providerInfo.getAddress().equals(meta.getAddress())){
+                    if (providerInfo.getAddress().equals(meta.getAddress())) {
                         meta.setIsReviewed(providerInfo.getIsReviewed());
                     }
                 }
@@ -155,12 +156,11 @@ public class RegistryProviderManager implements RegistryProviderServer {
             this.getServiceMeta(meta.getAddress()).add(serviceName);
 
             //默认的负载均衡的策略
-            LoadBalanceStrategy defaultBalanceStrategy = defaultRegistryServer.getRegistryServerConfig().getDefaultLoadBalanceStrategy();
+            LoadBalanceStrategy defaultBalanceStrategy = defaultRegistry.getRegistryConfig().getDefaultLoadBalanceStrategy();
 
-            if(null != concurrentMap.get(serviceName)){
-
-                RegistryPersistRecord persistRecord = concurrentMap.get(serviceName);
-                if(null != persistRecord.getBalanceStrategy()){
+            if (tempHistoryRecordMap.get(serviceName) != null) {
+                RegistryPersistRecord persistRecord = tempHistoryRecordMap.get(serviceName);
+                if (persistRecord.getBalanceStrategy() != null) {
                     defaultBalanceStrategy = persistRecord.getBalanceStrategy();
                 }
             }
@@ -168,13 +168,12 @@ public class RegistryProviderManager implements RegistryProviderServer {
             // 设置该服务默认的负载均衡的策略
             globalServiceLoadBalance.put(serviceName, defaultBalanceStrategy);
 
-
             // 判断provider发送的信息已经被成功的存储的情况下，则告之服务注册成功
             ackCustomBody.setSuccess(true);
 
             // 如果审核通过，则通知相关服务的订阅者
             if (meta.getIsReviewed() == ServiceReviewState.PASS_REVIEW) {
-                this.defaultRegistryServer.getConsumerManager().notifyMacthedSubscriber(meta, globalServiceLoadBalance.get(serviceName));
+                this.defaultRegistry.getConsumerManager().notifyMacthedSubscriber(meta, globalServiceLoadBalance.get(serviceName));
             }
         }
 
@@ -186,9 +185,9 @@ public class RegistryProviderManager implements RegistryProviderServer {
 
     private boolean isContainChildrenInfo(RegistryPersistRecord persistRecord, RegisterMeta.Address address) {
         List<RegistryPersistRecord.PersistProviderInfo> infos = persistRecord.getProviderInfos();
-        if(null != infos && !infos.isEmpty()){
-            for(RegistryPersistRecord.PersistProviderInfo info : infos){
-                if(info.getAddress().equals(address)){
+        if (null != infos && !infos.isEmpty()) {
+            for (RegistryPersistRecord.PersistProviderInfo info : infos) {
+                if (info.getAddress().equals(address)) {
                     return true;
                 }
             }
@@ -223,7 +222,6 @@ public class RegistryProviderManager implements RegistryProviderServer {
 
     /**
      * 修改某个服务的负载均衡的策略
-     *
      * @param opaque
      * @param managerServiceCustomBody
      * @return
@@ -256,7 +254,6 @@ public class RegistryProviderManager implements RegistryProviderServer {
 
     /**
      * 修改某个服务实例上的权重
-     *
      * @param opaque
      * @param managerServiceCustomBody
      * @return
@@ -275,7 +272,7 @@ public class RegistryProviderManager implements RegistryProviderServer {
         RegisterMeta.Address address = managerServiceCustomBody.getAddress(); // 地址
         Integer weight = managerServiceCustomBody.getWeightVal(); // 权重
 
-        ConcurrentMap< RegisterMeta.Address, RegisterMeta> maps = this.getRegisterMeta(serviceName);
+        ConcurrentMap<RegisterMeta.Address, RegisterMeta> maps = this.getRegisterMeta(serviceName);
 
         synchronized (globalRegisterInfoMap) {
 
@@ -289,7 +286,7 @@ public class RegistryProviderManager implements RegistryProviderServer {
 
             // 如果审核通过，则通知相关服务的订阅者
             if (meta.getIsReviewed() == ServiceReviewState.PASS_REVIEW) {
-                this.defaultRegistryServer.getConsumerManager().notifyMacthedSubscriber(meta, globalServiceLoadBalance.get(serviceName));
+                this.defaultRegistry.getConsumerManager().notifyMacthedSubscriber(meta, globalServiceLoadBalance.get(serviceName));
             }
         }
 
@@ -298,7 +295,6 @@ public class RegistryProviderManager implements RegistryProviderServer {
 
     /**
      * provider端发送的请求，取消对某个服务的提供
-     *
      * @param request
      * @param channel
      * @return
@@ -316,7 +312,7 @@ public class RegistryProviderManager implements RegistryProviderServer {
         // 接收到主体信息
         PublishServiceCustomBody publishServiceCustomBody = serializerImpl().readObject(request.getBytes(), PublishServiceCustomBody.class);
 
-        RegisterMeta meta = RegisterMeta.createRegiserMeta(publishServiceCustomBody,channel);
+        RegisterMeta meta = RegisterMeta.createRegiserMeta(publishServiceCustomBody, channel);
 
         handlePublishCancel(meta, channel);
 
@@ -329,7 +325,6 @@ public class RegistryProviderManager implements RegistryProviderServer {
 
     /**
      * 处理consumer的消息订阅，并返回结果
-     *
      * @param request
      * @param channel
      * @return
@@ -343,7 +338,7 @@ public class RegistryProviderManager implements RegistryProviderServer {
         SubscribeRequestCustomBody requestCustomBody = serializerImpl().readObject(request.getBytes(), SubscribeRequestCustomBody.class);
         String serviceName = requestCustomBody.getServiceName();
         // 将其降入到channel的group中去
-        this.defaultRegistryServer.getConsumerManager().getSubscriberChannels().add(channel);
+        this.defaultRegistry.getConsumerManager().getSubscriberChannels().add(channel);
 
         // 存储消费者信息
         ConcurrentSet<Channel> channels = globalConsumerMetaMap.get(serviceName);
@@ -357,7 +352,7 @@ public class RegistryProviderManager implements RegistryProviderServer {
         //将订阅的channel上打上tag标记，表示该channel订阅的服务
         attachSubscribeEventOnChannel(serviceName, channel);
 
-        ConcurrentMap< RegisterMeta.Address, RegisterMeta> maps = this.getRegisterMeta(serviceName);
+        ConcurrentMap<RegisterMeta.Address, RegisterMeta> maps = this.getRegisterMeta(serviceName);
         // 如果订阅的暂时还没有服务提供者，则返回空列表给订阅者
         if (maps.isEmpty()) {
             return responseTransporter;
@@ -388,7 +383,7 @@ public class RegistryProviderManager implements RegistryProviderServer {
         attachPublishCancelEventOnChannel(meta, channel);
 
         final String serviceMeta = meta.getServiceName();
-        ConcurrentMap< RegisterMeta.Address, RegisterMeta> maps = this.getRegisterMeta(serviceMeta);
+        ConcurrentMap<RegisterMeta.Address, RegisterMeta> maps = this.getRegisterMeta(serviceMeta);
         if (maps.isEmpty()) {
             return;
         }
@@ -401,14 +396,14 @@ public class RegistryProviderManager implements RegistryProviderServer {
             if (data != null) {
                 this.getServiceMeta(address).remove(serviceMeta);
 
-                if (data.getIsReviewed() == ServiceReviewState.PASS_REVIEW )
-                    this.defaultRegistryServer.getConsumerManager().notifyMacthedSubscriberCancel(meta);
+                if (data.getIsReviewed() == ServiceReviewState.PASS_REVIEW)
+                    this.defaultRegistry.getConsumerManager().notifyMacthedSubscriberCancel(meta);
             }
         }
     }
 
 	/*
-	 * ======================================分隔符，以上为核心方法，下面为内部方法==================
+     * ======================================分隔符，以上为核心方法，下面为内部方法==================
 	 * ============
 	 */
 
@@ -504,7 +499,6 @@ public class RegistryProviderManager implements RegistryProviderServer {
 
     /**
      * 组装服务信息反馈给管理页面
-     *
      * @param serviceName
      * @return
      */
@@ -514,7 +508,7 @@ public class RegistryProviderManager implements RegistryProviderServer {
         serviceMetrics.setLoadBalanceStrategy(globalServiceLoadBalance.get(serviceName));
         ConcurrentMap<RegisterMeta.Address, RegisterMeta> concurrentMap = globalRegisterInfoMap.get(serviceName);
         if (null != concurrentMap && concurrentMap.keySet() != null) {
-            ConcurrentMap<RegisterMeta.Address,ServiceMetrics.ProviderInfo> providerInfos = new ConcurrentHashMap<RegisterMeta.Address,ServiceMetrics.ProviderInfo>();
+            ConcurrentMap<RegisterMeta.Address, ServiceMetrics.ProviderInfo> providerInfos = new ConcurrentHashMap<RegisterMeta.Address, ServiceMetrics.ProviderInfo>();
             for (RegisterMeta.Address address : concurrentMap.keySet()) {
 
                 ServiceMetrics.ProviderInfo providerInfo = new ServiceMetrics.ProviderInfo();
@@ -550,7 +544,6 @@ public class RegistryProviderManager implements RegistryProviderServer {
 
     /**
      * 审核服务
-     *
      * @return
      * @throws InterruptedException
      * @throws RemotingTimeoutException
@@ -579,7 +572,7 @@ public class RegistryProviderManager implements RegistryProviderServer {
                     ServiceReviewState serviceReviewState = data.getIsReviewed();
                     data.setIsReviewed(reviewState);
 
-                    notifyConsumer(serviceReviewState,reviewState,data,serviceName);
+                    notifyConsumer(serviceReviewState, reviewState, data, serviceName);
 
                 }
 
@@ -590,7 +583,7 @@ public class RegistryProviderManager implements RegistryProviderServer {
                     for (RegisterMeta meta : maps.values()) {
                         ServiceReviewState serviceReviewState = meta.getIsReviewed();
                         meta.setIsReviewed(reviewState);
-                        notifyConsumer(serviceReviewState,reviewState,meta,serviceName);
+                        notifyConsumer(serviceReviewState, reviewState, meta, serviceName);
                     }
                 }
             }
@@ -600,14 +593,14 @@ public class RegistryProviderManager implements RegistryProviderServer {
 
     private void notifyConsumer(ServiceReviewState serviceReviewState, ServiceReviewState reviewState, RegisterMeta data, String serviceName) throws RemotingSendRequestException, RemotingTimeoutException, InterruptedException {
         //当现状态和原状态不一样的情况下，需要通知消费者
-        if(serviceReviewState != reviewState){
+        if (serviceReviewState != reviewState) {
 
             switch (reviewState) {
                 case PASS_REVIEW: //如果审核通过
-                    this.defaultRegistryServer.getConsumerManager().notifyMacthedSubscriber(data, globalServiceLoadBalance.get(serviceName));
+                    this.defaultRegistry.getConsumerManager().notifyMacthedSubscriber(data, globalServiceLoadBalance.get(serviceName));
                     break;
                 case FORBIDDEN:   //如果修改成禁用
-                    this.defaultRegistryServer.getConsumerManager().notifyMacthedSubscriberCancel(data);
+                    this.defaultRegistry.getConsumerManager().notifyMacthedSubscriberCancel(data);
                     break;
                 default:
                     break;
@@ -625,7 +618,7 @@ public class RegistryProviderManager implements RegistryProviderServer {
         ManagerServiceCustomBody body = serializerImpl().readObject(request.getBytes(), ManagerServiceCustomBody.class);
 
         String serviceName = body.getSerivceName();
-        ConcurrentMap< RegisterMeta.Address, RegisterMeta> maps = this.getRegisterMeta(serviceName);
+        ConcurrentMap<RegisterMeta.Address, RegisterMeta> maps = this.getRegisterMeta(serviceName);
 
         RegisterMeta.Address address = null;
 
@@ -645,15 +638,15 @@ public class RegistryProviderManager implements RegistryProviderServer {
             }
 
         }
-        if(address == null){
+        if (address == null) {
             return remotingTransporter;
-        }else{
+        } else {
             Channel matchedProviderChannel = globalProviderChannelMetaMap.get(address);
-            if(matchedProviderChannel != null){
+            if (matchedProviderChannel != null) {
                 request.setSign(Protocol.DEGRADE_SERVICE);
                 request.setContent(body);
-                return defaultRegistryServer.getRemotingServer().invokeSync(matchedProviderChannel, request, 3000l);
-            }else{
+                return defaultRegistry.getServer().invokeSync(matchedProviderChannel, request, 3000l);
+            } else {
                 return remotingTransporter;
             }
         }
@@ -661,32 +654,33 @@ public class RegistryProviderManager implements RegistryProviderServer {
 
     /**
      * 持久化操作
-     * 原则：1)首先优先从globalRegisterInfoMap中持久化到库中
-     *      2)如果globalRegisterInfoMap中没有信息，则从老版本中的historyRecords中的信息重新保存到硬盘中去,这样做的好处就是不需要多维护一个historyRecords这个全局变量的信息有效性
-     *
+     * 原则：
+     * 1) 首先优先从globalRegisterInfoMap中持久化到库中
+     * 2) 如果globalRegisterInfoMap中没有信息，则从老版本中的historyRecords中的信息重新保存到硬盘中去,这样做的好处就是不需要多维护一个historyRecords这个全局变量的信息有效性
+     * <p>
      * 这样做的原因是因为，只要有服务注册到注册中心，在注册的处理的时候，已经从历史中获取到以前审核和负载的情况，所以globalRegisterInfoMap中的信息是最新的
      * 如果有些服务以前注册过，但这次重启之后没有注册，所以就需要重新将其更新一下合并记录
      * @throws IOException
      */
     public void persistServiceInfo() throws IOException {
 
-        Map<String,RegistryPersistRecord> persistMap = new HashMap<String, RegistryPersistRecord>();
-        ConcurrentMap<String, ConcurrentMap< RegisterMeta.Address, RegisterMeta>> _globalRegisterInfoMap = this.globalRegisterInfoMap; //_stack copy
+        Map<String, RegistryPersistRecord> persistMap = new HashMap<String, RegistryPersistRecord>();
+        ConcurrentMap<String, ConcurrentMap<RegisterMeta.Address, RegisterMeta>> _globalRegisterInfoMap = this.globalRegisterInfoMap; //_stack copy
         ConcurrentMap<String, LoadBalanceStrategy> _globalServiceLoadBalance = this.globalServiceLoadBalance; //_stack copy
-        ConcurrentMap<String, RegistryPersistRecord> _historyRecords = this.historyRecords;
+        Map<String, RegistryPersistRecord> _historyRecords = this.historyRecords;
 
         //globalRegisterInfoMap 中保存
-        if(_globalRegisterInfoMap.keySet() != null){
+        if (_globalRegisterInfoMap.keySet() != null) {
 
-            for(String serviceName : _globalRegisterInfoMap.keySet()){
+            for (String serviceName : _globalRegisterInfoMap.keySet()) {
 
                 RegistryPersistRecord persistRecord = new RegistryPersistRecord();
                 persistRecord.setServiceName(serviceName);
                 persistRecord.setBalanceStrategy(_globalServiceLoadBalance.get(serviceName));
 
                 List<RegistryPersistRecord.PersistProviderInfo> providerInfos = new ArrayList<RegistryPersistRecord.PersistProviderInfo>();
-                ConcurrentMap< RegisterMeta.Address, RegisterMeta> serviceMap = _globalRegisterInfoMap.get(serviceName);
-                for( RegisterMeta.Address address : serviceMap.keySet()){
+                ConcurrentMap<RegisterMeta.Address, RegisterMeta> serviceMap = _globalRegisterInfoMap.get(serviceName);
+                for (RegisterMeta.Address address : serviceMap.keySet()) {
                     RegistryPersistRecord.PersistProviderInfo info = new RegistryPersistRecord.PersistProviderInfo();
                     info.setAddress(address);
                     info.setIsReviewed(serviceMap.get(address).getIsReviewed());
@@ -698,14 +692,14 @@ public class RegistryProviderManager implements RegistryProviderServer {
         }
 
 
-        if(null != _historyRecords.keySet()){
+        if (null != _historyRecords.keySet()) {
 
-            for(String serviceName :_historyRecords.keySet()){
+            for (String serviceName : _historyRecords.keySet()) {
 
                 //不包含的时候
-                if(!persistMap.keySet().contains(serviceName)){
+                if (!persistMap.keySet().contains(serviceName)) {
                     persistMap.put(serviceName, _historyRecords.get(serviceName));
-                }else{
+                } else {
 
                     //负载策略不需要合并更新，需要更新的是existRecord中没有的provider的信息
                     List<RegistryPersistRecord.PersistProviderInfo> providerInfos = new ArrayList<RegistryPersistRecord.PersistProviderInfo>();
@@ -716,18 +710,18 @@ public class RegistryProviderManager implements RegistryProviderServer {
                     RegistryPersistRecord possibleMergeRecord = _historyRecords.get(serviceName);
                     List<RegistryPersistRecord.PersistProviderInfo> possibleProviderInfos = possibleMergeRecord.getProviderInfos();
 
-                    for(RegistryPersistRecord.PersistProviderInfo eachPossibleInfo : possibleProviderInfos){
+                    for (RegistryPersistRecord.PersistProviderInfo eachPossibleInfo : possibleProviderInfos) {
 
                         RegisterMeta.Address address = eachPossibleInfo.getAddress();
 
                         boolean exist = false;
-                        for(RegistryPersistRecord.PersistProviderInfo existProviderInfo : providerInfos){
-                            if(existProviderInfo.getAddress().equals(address)){
+                        for (RegistryPersistRecord.PersistProviderInfo existProviderInfo : providerInfos) {
+                            if (existProviderInfo.getAddress().equals(address)) {
                                 exist = true;
                                 break;
                             }
                         }
-                        if(!exist){
+                        if (!exist) {
                             providerInfos.add(eachPossibleInfo);
                         }
                     }
@@ -736,22 +730,20 @@ public class RegistryProviderManager implements RegistryProviderServer {
                 }
             }
 
-            if(null != persistMap.values() && !persistMap.values().isEmpty()){
+            if (null != persistMap.values() && !persistMap.values().isEmpty()) {
 
                 String jsonString = JSON.toJSONString(persistMap.values());
 
-                if(jsonString != null){
-                    PersistUtils.string2File(jsonString, this.defaultRegistryServer.getRegistryServerConfig().getStorePathRootDir());
+                if (jsonString != null) {
+                    PersistUtils.string2File(jsonString, this.defaultRegistry.getRegistryConfig().getStorePathRootDir());
                 }
             }
         }
     }
 
-    public ConcurrentMap<String, RegistryPersistRecord> getHistoryRecords() {
+    public Map<String, RegistryPersistRecord> getHistoryRecords() {
         return historyRecords;
     }
-
-
 
 
 }

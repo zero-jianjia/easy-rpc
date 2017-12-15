@@ -16,12 +16,9 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * 
- * @author BazingaLyn
- * @description 
+ * @description
  *              当某个服务提供者宕机的时候，会与monitor端之间的链接inactive，此时需要将这个服务器提供的所有的服务调用的次数的信息全部持久化到硬盘
  *              中，防止数据丢失
- * @time 2016年9月7日
- * @modifytime
  */
 public class DefaultMonitorChannelInactiveProcessor implements ChannelInactiveProcessor {
 

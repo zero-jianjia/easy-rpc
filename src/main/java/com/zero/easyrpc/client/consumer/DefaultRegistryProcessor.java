@@ -15,13 +15,13 @@ import static com.zero.easyrpc.common.protocal.Protocol.SUBCRIBE_SERVICE_CANCEL;
  *  消费者端注册功能的主要处理逻辑
  * Created by jianjia1 on 17/12/07.
  */
-public class DefaultConsumerRegistryProcessor implements Processor {
+public class DefaultRegistryProcessor implements Processor {
 
-    private static final Logger logger = LoggerFactory.getLogger(DefaultConsumerRegistryProcessor.class);
+    private static final Logger logger = LoggerFactory.getLogger(DefaultRegistryProcessor.class);
 
     private DefaultConsumer defaultConsumer;
 
-    public DefaultConsumerRegistryProcessor(DefaultConsumer defaultConsumer) {
+    public DefaultRegistryProcessor(DefaultConsumer defaultConsumer) {
         this.defaultConsumer = defaultConsumer;
     }
 

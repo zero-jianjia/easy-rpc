@@ -2,8 +2,8 @@ package com.zero.easyrpc.example.generic.test_3;
 
 import com.zero.easyrpc.common.rpc.RegisterMeta;
 import com.zero.easyrpc.common.rpc.ServiceReviewState;
-import com.zero.easyrpc.registry.base.DefaultRegistryServer;
-import com.zero.easyrpc.registry.base.RegistryServerConfig;
+import com.zero.easyrpc.registry.DefaultRegistry;
+import com.zero.easyrpc.registry.RegistryConfig;
 import com.zero.easyrpc.netty4.ServerConfig;
 import io.netty.util.internal.ConcurrentSet;
 
@@ -18,7 +18,7 @@ public class RegistryTest {
 	
 	private static final Logger logger = LoggerFactory.getLogger(RegistryTest.class);
 	
-	private static DefaultRegistryServer defaultRegistryServer;
+	private static DefaultRegistry defaultRegistry;
 	
 	public static void main(String[] args) {
 		
@@ -27,12 +27,12 @@ public class RegistryTest {
         t.start();
         
 		ServerConfig config = new ServerConfig();
-		RegistryServerConfig registryServerConfig = new RegistryServerConfig();
-		registryServerConfig.setDefaultReviewState(ServiceReviewState.PASS_REVIEW);
+		RegistryConfig registryConfig = new RegistryConfig();
+		registryConfig.setDefaultReviewState(ServiceReviewState.PASS_REVIEW);
 		//注册中心的端口号
 		config.setListenPort(18010);
-		defaultRegistryServer = new DefaultRegistryServer(config,registryServerConfig);
-		defaultRegistryServer.start();
+		defaultRegistry = new DefaultRegistry(config, registryConfig);
+		defaultRegistry.start();
 		
 	}
 	
@@ -46,7 +46,7 @@ public class RegistryTest {
                 try {
                 	logger.info("统计中");
                 	Thread.sleep(10000);
-                	ConcurrentMap<String, ConcurrentMap<RegisterMeta.Address, RegisterMeta>>  concurrentMap = defaultRegistryServer.getProviderManager().getGlobalRegisterInfoMap();
+                	ConcurrentMap<String, ConcurrentMap<RegisterMeta.Address, RegisterMeta>>  concurrentMap = defaultRegistry.getProvidermanager().getGlobalRegisterInfoMap();
                     if(null != concurrentMap){
                     	for(String serviceName:concurrentMap.keySet()){
                     		ConcurrentMap<RegisterMeta.Address, RegisterMeta> map = concurrentMap.get(serviceName);
@@ -58,7 +58,7 @@ public class RegistryTest {
                     	}
                     }
                     
-                    ConcurrentMap<RegisterMeta.Address, ConcurrentSet<String>>  serviceMap = defaultRegistryServer.getProviderManager().getGlobalServiceMetaMap();
+                    ConcurrentMap<RegisterMeta.Address, ConcurrentSet<String>>  serviceMap = defaultRegistry.getProvidermanager().getGlobalServiceMetaMap();
                     if(null != serviceMap){
                     	for(RegisterMeta.Address address : serviceMap.keySet()){
                     		if(null != serviceMap.get(address)){

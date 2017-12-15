@@ -5,13 +5,6 @@ import com.zero.easyrpc.common.serialization.SerializerFactory;
 import java.io.IOException;
 
 
-/**
- * 
- * @author BazingaLyn
- * @description
- * @time 2016年10月18日
- * @modifytime
- */
 public class GoogleSnappyTest2 {
 	
 	

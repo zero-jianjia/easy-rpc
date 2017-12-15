@@ -6,10 +6,7 @@ import java.io.UnsupportedEncodingException;
 
 /**
  * 
- * @author BazingaLyn
  * @description Google的Snappy的测试
- * @time 2016年10月18日
- * @modifytime
  */
 public class GoogleSnappyTest {
 	

@@ -42,11 +42,11 @@ public class ConsumerClient extends DefaultConsumer {
 
     @Override
     public Object call(String serviceName, Object... args) throws Throwable {
-        return call(serviceName, DEFAULT_TIMEOUT, args);
+        return call(DEFAULT_TIMEOUT, serviceName, args);
     }
 
     @Override
-    public Object call(String serviceName, long timeout, Object... args) throws Throwable {
+    public Object call(long timeout, String serviceName, Object... args) throws Throwable {
         // 查看该服务是否已经可用，第一次调用的时候，需要预热
 
         if (null == serviceName || serviceName.length() == 0) {
@@ -68,7 +68,7 @@ public class ConsumerClient extends DefaultConsumer {
 
     @Override
     public Transporter sendRpcRequestToProvider(Channel channel, Transporter request,long timeout) throws RemotingTimeoutException, RemotingSendRequestException, InterruptedException {
-        return super.providerNettyRemotingClient.invokeSyncImpl(channel, request, timeout);
+        return super.providerNettyClient.invokeSyncImpl(channel, request, timeout);
     }
 
     private ChannelGroup getAllMatchedChannel(String serviceName) {

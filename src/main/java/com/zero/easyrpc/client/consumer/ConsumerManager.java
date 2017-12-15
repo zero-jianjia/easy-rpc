@@ -27,7 +27,7 @@ public class ConsumerManager {
 
     private static final Logger logger = LoggerFactory.getLogger(ConsumerManager.class);
 
-    private DefaultConsumer defaultConsumer; //consumer模块的代码手持defaultConsumer好办事
+    private DefaultConsumer defaultConsumer;     //consumer模块的代码手持defaultConsumer好办事
     private final ReentrantReadWriteLock registriesLock = new ReentrantReadWriteLock();
     private final Map<String, List<RegisterMeta>> registries = new ConcurrentHashMap<String, List<RegisterMeta>>();
 

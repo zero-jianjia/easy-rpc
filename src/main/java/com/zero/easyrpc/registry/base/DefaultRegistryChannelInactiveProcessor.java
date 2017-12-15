@@ -4,6 +4,7 @@ import com.zero.easyrpc.common.exception.RemotingSendRequestException;
 import com.zero.easyrpc.common.exception.RemotingTimeoutException;
 import com.zero.easyrpc.common.rpc.RegisterMeta;
 import com.zero.easyrpc.netty4.model.ChannelInactiveProcessor;
+import com.zero.easyrpc.registry.DefaultRegistry;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.AttributeKey;
@@ -19,12 +20,12 @@ public class DefaultRegistryChannelInactiveProcessor implements ChannelInactiveP
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultRegistryChannelInactiveProcessor.class);
 
-    private DefaultRegistryServer defaultRegistryServer;
+    private DefaultRegistry defaultRegistry;
 
     private static final AttributeKey<ConcurrentSet<RegisterMeta>> S_PUBLISH_KEY = AttributeKey.valueOf("server.published");
 
-    public DefaultRegistryChannelInactiveProcessor(DefaultRegistryServer defaultRegistryServer) {
-        this.defaultRegistryServer = defaultRegistryServer;
+    public DefaultRegistryChannelInactiveProcessor(DefaultRegistry defaultRegistry) {
+        this.defaultRegistry = defaultRegistry;
     }
 
     @Override
@@ -40,6 +41,7 @@ public class DefaultRegistryChannelInactiveProcessor implements ChannelInactiveP
             logger.debug("registerMetaSet is empty");
             return;
         }
+
         //接下来需要做两件事情
         //1 修改当前注册中心该channel所提供的所有服务取消
         //2 发送请求告之consumer该地址对应的所有服务下线
@@ -49,7 +51,7 @@ public class DefaultRegistryChannelInactiveProcessor implements ChannelInactiveP
             if (address == null) {
                 address = meta.getAddress();
             }
-            this.defaultRegistryServer.getProviderManager().handlePublishCancel(meta, channel);
+            this.defaultRegistry.getProvidermanager().handlePublishCancel(meta, channel);
         }
     }
 }

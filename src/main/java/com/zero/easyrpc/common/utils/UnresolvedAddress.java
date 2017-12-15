@@ -11,6 +11,8 @@ public class UnresolvedAddress {
     public UnresolvedAddress(String host, int port) {
         this.host = host;
         this.port = port;
+
+
     }
 
     public String getHost() {
@@ -23,8 +25,13 @@ public class UnresolvedAddress {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         UnresolvedAddress that = (UnresolvedAddress) o;
 

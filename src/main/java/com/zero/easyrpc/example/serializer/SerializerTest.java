@@ -19,8 +19,6 @@ import static com.zero.easyrpc.common.serialization.SerializerFactory.serializer
  * 修改org.laopopo.common.serialization.Serializer中的内容为：
  * org.laopopo.common.serialization.kryo.KryoSerializer
  * 
- * @time 2016年8月12日
- * @modifytime
  */
 public class SerializerTest {
 	

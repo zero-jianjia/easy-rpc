@@ -20,46 +20,8 @@ public class JsonToFileTest {
 		Map<Teacher,List<Student>> maps = new HashMap<Teacher,List<Student>>();
 		
 		
-		Teacher teacher = new Teacher(1, "梁老师");
-		
-		Student student1 = new Student(1, "王诩文", 26);
-		Student student2 = new Student(2, "朴俊", 27);
-		Student student3 = new Student(3, "陆维梁", 28);
-		Student student4 = new Student(4, "曾卓", 28);
-		List<Student> students = new ArrayList<Student>();
-		students.add(student1);
-		students.add(student2);
-		students.add(student3);
-		students.add(student4);
-		
-		maps.put(teacher, students);
-		
-		//json to str
-		String str = JSON.toJSONString(maps);
-		
-		//获取到自定义的用户名
-		String fileName = storePathRootDir;
-		
-		//先将要保存的字符串保存到一个临时文件下
-		String tmpFile = fileName + ".tmp";
-        string2FileNotSafe(str, tmpFile);
-
-        //备份文件夹
-        String bakFile = fileName + ".bak";
-        //如果该文件已经存在的情况下
-        String prevContent = file2String(fileName);
-        if (prevContent != null) {
-            string2FileNotSafe(prevContent, bakFile);
-        }
-
-        File file = new File(fileName);
-        file.delete();
-
-        file = new File(tmpFile);
-        file.renameTo(new File(fileName));
-		
 	}
-	
+
 	public static final String file2String(final String fileName) {
         File file = new File(fileName);
         return file2String(file);

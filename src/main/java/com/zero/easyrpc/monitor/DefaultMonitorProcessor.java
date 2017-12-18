@@ -26,13 +26,6 @@ import static com.zero.easyrpc.common.protocal.Protocol.MANAGER_SERVICE;
 import static com.zero.easyrpc.common.protocal.Protocol.MERTRICS_SERVICE;
 import static com.zero.easyrpc.common.serialization.SerializerFactory.serializerImpl;
 
-/**
- * 
- * @author BazingaLyn
- * @description monitor的处理器
- * @time 2016年8月17日
- * @modifytime
- */
 public class DefaultMonitorProcessor implements Processor {
 	
 	private static final Logger logger = LoggerFactory.getLogger(DefaultMonitorProcessor.class);

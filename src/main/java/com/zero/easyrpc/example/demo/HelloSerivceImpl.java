@@ -9,10 +9,10 @@ public class HelloSerivceImpl implements HelloSerivce {
 
     @Override
     @RPCService(responsibilityName="xiaoy",
-            serviceName="LAOPOPO.TEST.SAYHELLO",
+            serviceName="TEST.SAYHELLO",
             isVIPService = false,
             isSupportDegradeService = true,
-            degradeServicePath="org.laopopo.example.demo.service.HelloServiceMock",
+            degradeServicePath="com.zero.easyrpc.example.demo.HelloServiceMock",
             degradeServiceDesc="默认返回hello")
     public String sayHello(String str) {
 

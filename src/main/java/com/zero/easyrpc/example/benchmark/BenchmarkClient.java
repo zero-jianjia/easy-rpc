@@ -7,7 +7,7 @@ import com.zero.easyrpc.client.consumer.Consumer;
 import com.zero.easyrpc.client.consumer.ConsumerClient;
 import com.zero.easyrpc.client.consumer.ConsumerConfig;
 import com.zero.easyrpc.client.consumer.proxy.ProxyFactory;
-import com.zero.easyrpc.example.generic.test_2.HelloService;
+import com.zero.easyrpc.example.generic.HelloService;
 import com.zero.easyrpc.netty4.ClientConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +21,6 @@ import org.slf4j.LoggerFactory;
  * 2016-10-18 16:06:38.906 WARN  [main] [BenchmarkClient] - Request count: 12800000, time: 199 second, qps: 64321
  */
 public class BenchmarkClient {
-	
 	private static final Logger logger = LoggerFactory.getLogger(BenchmarkClient.class);
 	
 	public static void main(String[] args) throws Exception {
@@ -37,17 +36,16 @@ public class BenchmarkClient {
 
 		client.start();
 
-		Consumer.SubscribeManager subscribeManager = client.subscribeService("LAOPOPO.TEST.SAYHELLO");
+		Consumer.SubscribeManager subscribeManager = client.subscribeService("TEST.SAYHELLO");
 
-		if (!subscribeManager.waitForAvailable(3000l)) {
+		if (!subscribeManager.waitForAvailable(3000L)) {
 			throw new Exception("no service provider");
 		}
 
 		final HelloService helloService = ProxyFactory.factory(HelloService.class).consumer(client).timeoutMillis(3000l).newProxyInstance();
 
 		for (int i = 0; i < 5000; i++) {
-			String str = helloService.sayHello("Lyncc");
-			System.out.println(str);
+			String str = helloService.sayHello("zero");
 		}
 		final int t = 50000;
 		final int step = 6;

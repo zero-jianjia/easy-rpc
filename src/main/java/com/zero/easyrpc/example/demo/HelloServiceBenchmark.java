@@ -7,7 +7,7 @@ public class HelloServiceBenchmark implements HelloSerivce {
 
 	@Override
 	@RPCService(responsibilityName="xiaoy",
-	serviceName="LAOPOPO.TEST.SAYHELLO",
+	serviceName="TEST.SAYHELLO",
 	connCount = 4,
 	isFlowController = false,
 	degradeServiceDesc="默认返回hello")

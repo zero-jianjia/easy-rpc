@@ -1,4 +1,4 @@
-package com.zero.easyrpc.example.generic.test_5;
+package com.zero.easyrpc.example.generic;
 
 import com.zero.easyrpc.client.annotation.RPConsumer;
 
@@ -11,4 +11,3 @@ public interface HelloService {
     String sayHello(String str);
 
 }
-

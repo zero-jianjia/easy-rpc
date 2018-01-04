@@ -84,7 +84,7 @@ public class DefaultProvider implements Provider {
         this.nettyVIPRPCServer = new Server(this.serverConfig);
 
         this.rpcExecutor = Executors.newFixedThreadPool(serverConfig.getWorkerThreads(), new NamedThreadFactory("providerExecutorThread-"));
-        this.rpcVipExecutor = Executors.newFixedThreadPool(serverConfig.getWorkerThreads() / 2, new NamedThreadFactory("providerVIPExecutorThread-"));
+        this.rpcVipExecutor = Executors.newFixedThreadPool(serverConfig.getWorkerThreads() / 2 > 0 ? serverConfig.getWorkerThreads() / 2  : 1, new NamedThreadFactory("providerVIPExecutorThread-"));
 
         // 注册处理器
         registerProcessor();

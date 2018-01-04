@@ -132,7 +132,7 @@ public class Server extends BaseServer implements NettyServer {
     public void start() {
 
         if (serverBootstrap == null) {
-            throw new IllegalStateException("Not init.");
+            init();
         }
 
         defaultEventExecutorGroup = new DefaultEventExecutorGroup(Constants.AVAILABLE_PROCESSORS,

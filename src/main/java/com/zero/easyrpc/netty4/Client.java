@@ -111,7 +111,7 @@ public class Client extends BaseServer implements NettyClient {
     @Override
     public void start() {
         if (bootstrap == null) {
-            throw new IllegalStateException();
+            init();
         }
 
         this.defaultEventExecutorGroup = new DefaultEventExecutorGroup(

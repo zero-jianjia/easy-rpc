@@ -4,7 +4,7 @@ public class ServerConfig {
 
     private int listenPort = 8888;
 
-    private int workerThreads;
+    private int workerThreads = 1;
 
     private int channelInactiveHandlerThreads = 1;
 

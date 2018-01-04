@@ -52,6 +52,9 @@ dependencies {
     compile 'org.apache.logging.log4j:log4j-core:2.8.2'
     compile 'com.lmax:disruptor:3.3.6'
 
+    compile 'com.caucho:hessian:4.0.38'
+
+
     //test
     testCompile 'org.jmockit:jmockit:1.19'
     testCompile 'junit:junit:4.11'

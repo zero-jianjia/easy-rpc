@@ -1,6 +1,8 @@
 package com.zero.easyrpc.common.serialization.proto;
 
 import com.zero.easyrpc.common.serialization.Serializer;
+import com.zero.easyrpc.common.serialization.SerializerType;
+import com.zero.easyrpc.common.utils.Reflects;
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtostuffIOUtil;
 import io.protostuff.Schema;
@@ -12,11 +14,12 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
+ * Protostuff的序列化/反序列化实现
  * Created by jianjia1 on 17/12/04.
  */
-public class ProtoStuffSerializer implements Serializer {
+public class ProtoStuffSerializer extends Serializer {
 
-    private static Map<Class<?>, Schema<?>> cachedSchema = new ConcurrentHashMap<Class<?>, Schema<?>>();
+    private static Map<Class<?>, Schema<?>> schemaCache = new ConcurrentHashMap<>();
 
     private static Objenesis objenesis = new ObjenesisStd(true);
 
@@ -34,7 +37,9 @@ public class ProtoStuffSerializer implements Serializer {
         }
     }
 
-    public <T> T readObject(byte[] bytes, Class<T> clazz) {
+
+    @Override
+    public <T> T readObject(byte[] bytes, int offset, int length, Class<T> clazz) {
         try {
             T message = objenesis.newInstance(clazz);
             Schema<T> schema = getSchema(clazz);
@@ -47,12 +52,17 @@ public class ProtoStuffSerializer implements Serializer {
 
     @SuppressWarnings("unchecked")
     private static <T> Schema<T> getSchema(Class<T> cls) {
-        Schema<T> schema = (Schema<T>) cachedSchema.get(cls);
+        Schema<T> schema = (Schema<T>) schemaCache.get(cls);
         if (schema == null) {
             schema = RuntimeSchema.createFrom(cls);
-            cachedSchema.put(cls, schema);
+            schemaCache.put(cls, schema);
         }
         return schema;
+    }
+
+    @Override
+    public byte code() {
+        return SerializerType.PROTO_STUFF.value();
     }
 
 }

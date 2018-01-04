@@ -7,7 +7,7 @@ import com.zero.easyrpc.client.annotation.RPConsumer;
  */
 public interface HelloService {
 
-    @RPConsumer(serviceName="LAOPOPO.TEST.SAYHELLO")
+    @RPConsumer(serviceName="TEST.SAYHELLO")
     String sayHello(String str);
 
 }

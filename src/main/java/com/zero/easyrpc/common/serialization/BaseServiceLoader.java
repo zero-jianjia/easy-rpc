@@ -1,4 +1,4 @@
-package com.zero.easyrpc.common.spi;
+package com.zero.easyrpc.common.serialization;
 
 import java.util.ServiceLoader;
 

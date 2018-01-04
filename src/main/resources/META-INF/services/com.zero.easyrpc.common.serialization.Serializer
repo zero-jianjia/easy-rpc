@@ -1,1 +1,3 @@
 com.zero.easyrpc.common.serialization.proto.ProtoStuffSerializer
+com.zero.easyrpc.common.serialization.proto.HessianSerializer
+

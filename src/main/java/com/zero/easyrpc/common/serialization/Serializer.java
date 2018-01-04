@@ -3,19 +3,16 @@ package com.zero.easyrpc.common.serialization;
 /**
  * Created by jianjia1 on 17/12/04.
  */
-public interface Serializer {
-    /**
-     * 将对象序列化成byte[]
-     * @param obj
-     * @return
-     */
-    <T> byte[] writeObject(T obj);
+public abstract class Serializer {
 
-    /**
-     * 将byte数组反序列成对象
-     * @param bytes
-     * @param clazz
-     * @return
-     */
-    <T> T readObject(byte[] bytes, Class<T> clazz);
+    public abstract byte code();
+
+
+    public abstract <T> byte[] writeObject(T obj);
+
+    public abstract <T> T readObject(byte[] bytes, int offset, int length, Class<T> clazz);
+
+    public <T> T readObject(byte[] bytes, Class<T> clazz) {
+        return readObject(bytes, 0, bytes.length, clazz);
+    }
 }

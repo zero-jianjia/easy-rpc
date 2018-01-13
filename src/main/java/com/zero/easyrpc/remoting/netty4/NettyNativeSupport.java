@@ -1,9 +1,9 @@
-package com.zero.easyrpc.common.utils;
+package com.zero.easyrpc.remoting.netty4;
 
 /**
  * Created by jianjia1 on 17/12/04.
  */
-public class NativeSupport {
+public class NettyNativeSupport {
     private static final boolean SUPPORT_NATIVE_ET;
 
     static {

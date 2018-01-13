@@ -3,7 +3,7 @@ package com.zero.easyrpc.netty4;
 import com.zero.easyrpc.common.exception.RemotingSendRequestException;
 import com.zero.easyrpc.common.exception.RemotingTimeoutException;
 import com.zero.easyrpc.common.protocal.Protocol;
-import com.zero.easyrpc.common.utils.NativeSupport;
+import com.zero.easyrpc.remoting.netty4.NettyNativeSupport;
 import com.zero.easyrpc.common.utils.Pair;
 import com.zero.easyrpc.netty4.model.ChannelInactiveProcessor;
 import com.zero.easyrpc.netty4.model.Processor;
@@ -205,7 +205,7 @@ public class BaseServer {
     }
 
     boolean isNativeEt() {
-        return NativeSupport.isSupportNativeET();
+        return NettyNativeSupport.isSupportNativeET();
     }
 
 }

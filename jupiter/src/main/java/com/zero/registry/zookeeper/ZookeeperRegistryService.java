@@ -1,0 +1,391 @@
+/*
+ * Copyright (c) 2015 The Jupiter Project
+ *
+ * Licensed under the Apache License, version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at:
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.zero.registry.zookeeper;
+
+
+import io.netty.util.internal.ConcurrentSet;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.api.BackgroundCallback;
+import org.apache.curator.framework.api.CuratorEvent;
+import org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
+import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
+import org.apache.curator.framework.state.ConnectionState;
+import org.apache.curator.framework.state.ConnectionStateListener;
+import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.zero.common.util.*;
+import com.zero.registry.api.AbstractRegistryService;
+import com.zero.registry.NotifyListener;
+import com.zero.registry.RegisterMeta;
+
+import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static org.zero.common.util.Preconditions.checkNotNull;
+import static org.zero.common.util.StackTraceUtil.stackTrace;
+
+@SpiMetadata(name = "zookeeper")
+public class ZookeeperRegistryService extends AbstractRegistryService {
+
+    private static final InternalLogger logger = InternalLoggerFactory.getInstance(ZookeeperRegistryService.class);
+
+    private static final AtomicLong sequence = new AtomicLong(0);
+
+    private final String address = NetUtil.getLocalAddress();
+
+    private final int sessionTimeoutMs = 60 * 1000;
+    private final int connectionTimeoutMs = 15 * 1000;
+
+    private final ConcurrentMap<RegisterMeta.ServiceMeta, PathChildrenCache> pathChildrenCaches = Maps.newConcurrentMap();
+    // 指定节点都提供了哪些服务
+    private final ConcurrentMap<RegisterMeta.Address, ConcurrentSet<RegisterMeta.ServiceMeta>> serviceMetaMap = Maps.newConcurrentMap();
+
+    private CuratorFramework configClient;
+
+    @Override
+    public Collection<RegisterMeta> lookup(RegisterMeta.ServiceMeta serviceMeta) {
+        String directory = String.format("/rpc/provider/%s/%s/%s",
+                serviceMeta.getGroup(),
+                serviceMeta.getServiceProviderName(),
+                serviceMeta.getVersion());
+
+        List<RegisterMeta> registerMetaList = Lists.newArrayList();
+        try {
+            List<String> paths = configClient.getChildren().forPath(directory);
+            for (String p : paths) {
+                registerMetaList.add(parseRegisterMeta(String.format("%s/%s", directory, p)));
+            }
+        } catch (Exception e) {
+            if (logger.isWarnEnabled()) {
+                logger.warn("Lookup service meta: {} path failed, {}.", serviceMeta, stackTrace(e));
+            }
+        }
+        return registerMetaList;
+    }
+
+    @Override
+    protected void doSubscribe(final RegisterMeta.ServiceMeta serviceMeta) {
+        PathChildrenCache childrenCache = pathChildrenCaches.get(serviceMeta);
+        if (childrenCache == null) {
+            String directory = String.format("/rpc/provider/%s/%s/%s",
+                    serviceMeta.getGroup(),
+                    serviceMeta.getServiceProviderName(),
+                    serviceMeta.getVersion());
+
+            PathChildrenCache newChildrenCache = new PathChildrenCache(configClient, directory, false);
+            childrenCache = pathChildrenCaches.putIfAbsent(serviceMeta, newChildrenCache);
+            if (childrenCache == null) {
+                childrenCache = newChildrenCache;
+
+                childrenCache.getListenable().addListener(new PathChildrenCacheListener() {
+
+                    @Override
+                    public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception {
+
+                        logger.info("Child event: {}", event);
+
+                        switch (event.getType()) {
+                            case CHILD_ADDED: {
+                                RegisterMeta registerMeta = parseRegisterMeta(event.getData().getPath());
+                                RegisterMeta.Address address = registerMeta.getAddress();
+                                RegisterMeta.ServiceMeta serviceMeta = registerMeta.getServiceMeta();
+
+                                ConcurrentSet<RegisterMeta.ServiceMeta> serviceMetaSet = getServiceMeta(address);
+
+                                serviceMetaSet.add(serviceMeta);
+                                ZookeeperRegistryService.super.notify(
+                                        serviceMeta, NotifyListener.NotifyEvent.ADDED,
+                                        sequence.incrementAndGet(),
+                                        registerMeta);
+                                break;
+                            }
+                            case CHILD_REMOVED: {
+                                RegisterMeta registerMeta = parseRegisterMeta(event.getData().getPath());
+                                RegisterMeta.Address address = registerMeta.getAddress();
+                                RegisterMeta.ServiceMeta serviceMeta = registerMeta.getServiceMeta();
+                                ConcurrentSet<RegisterMeta.ServiceMeta> serviceMetaSet = getServiceMeta(address);
+
+                                serviceMetaSet.remove(serviceMeta);
+                                ZookeeperRegistryService.super.notify(
+                                        serviceMeta, NotifyListener.NotifyEvent.REMOVED,
+                                        sequence.incrementAndGet(),
+                                        registerMeta);
+
+                                if (serviceMetaSet.isEmpty()) {
+                                    logger.info("Offline notify: {}.", address);
+                                    ZookeeperRegistryService.super.offline(address);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                });
+
+                try {
+                    childrenCache.start();
+                } catch (Exception e) {
+                    if (logger.isWarnEnabled()) {
+                        logger.warn("Subscribe {} failed, {}.", directory, stackTrace(e));
+                    }
+                }
+            } else {
+                try {
+                    newChildrenCache.close();
+                } catch (IOException e) {
+                    if (logger.isWarnEnabled()) {
+                        logger.warn("Close [PathChildrenCache] {} failed, {}.", directory, stackTrace(e));
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    protected void doRegister(final RegisterMeta meta) {
+        String directory = String.format("/rpc/provider/%s/%s/%s",
+                meta.getGroup(),
+                meta.getServiceProviderName(),
+                meta.getVersion());
+
+        try {
+            if (configClient.checkExists().forPath(directory) == null) {
+                configClient.create().creatingParentsIfNeeded().forPath(directory);
+            }
+        } catch (Exception e) {
+            if (logger.isWarnEnabled()) {
+                logger.warn("Create parent path failed, directory: {}, {}.", directory, stackTrace(e));
+            }
+        }
+
+        try {
+            // 临时节点
+            configClient.create().withMode(CreateMode.EPHEMERAL).inBackground(new BackgroundCallback() {
+
+                @Override
+                public void processResult(CuratorFramework client, CuratorEvent event) throws Exception {
+                    if (event.getResultCode() == KeeperException.Code.OK.intValue()) {
+                        getRegisterMetaMap().put(meta, RegisterState.DONE);
+                    }
+
+                    if (logger.isInfoEnabled()) {
+                        logger.info("Register: {} - {}.", meta, event);
+                    }
+                }
+            }).forPath(String.format("%s/%s:%s:%s:%s",
+                    directory,
+                    meta.getHost(),
+                    String.valueOf(meta.getPort()),
+                    String.valueOf(meta.getWeight()),
+                    String.valueOf(meta.getConnCount())));
+        } catch (Exception e) {
+            if (logger.isWarnEnabled()) {
+                logger.warn("Create registry meta: {} path failed, {}.", meta, stackTrace(e));
+            }
+        }
+    }
+
+    @Override
+    protected void doUnregister(final RegisterMeta meta) {
+        String directory = String.format("/rpc/provider/%s/%s/%s",
+                meta.getGroup(),
+                meta.getServiceProviderName(),
+                meta.getVersion());
+
+        try {
+            if (configClient.checkExists().forPath(directory) == null) {
+                return;
+            }
+        } catch (Exception e) {
+            if (logger.isWarnEnabled()) {
+                logger.warn("Check exists of parent path failed, directory: {}, {}.", directory, stackTrace(e));
+            }
+        }
+
+        try {
+            configClient.delete().inBackground(new BackgroundCallback() {
+
+                @Override
+                public void processResult(CuratorFramework client, CuratorEvent event) throws Exception {
+                    if (logger.isInfoEnabled()) {
+                        logger.info("Unregister: {} - {}.", meta, event);
+                    }
+                }
+            }).forPath(
+                    String.format("%s/%s:%s:%s:%s",
+                            directory,
+                            meta.getHost(),
+                            String.valueOf(meta.getPort()),
+                            String.valueOf(meta.getWeight()),
+                            String.valueOf(meta.getConnCount())));
+        } catch (Exception e) {
+            if (logger.isWarnEnabled()) {
+                logger.warn("Delete registry meta: {} path failed, {}.", meta, stackTrace(e));
+            }
+        }
+    }
+
+    @Override
+    protected void doCheckRegisterNodeStatus() {
+        for (Map.Entry<RegisterMeta, RegisterState> entry : getRegisterMetaMap().entrySet()) {
+            if (entry.getValue() == RegisterState.DONE) {
+                continue;
+            }
+
+            RegisterMeta meta = entry.getKey();
+            String directory = String.format("/rpc/provider/%s/%s/%s",
+                    meta.getGroup(),
+                    meta.getServiceProviderName(),
+                    meta.getVersion());
+
+            String nodePath = String.format("%s/%s:%s:%s:%s",
+                    directory,
+                    meta.getHost(),
+                    String.valueOf(meta.getPort()),
+                    String.valueOf(meta.getWeight()),
+                    String.valueOf(meta.getConnCount()));
+
+            try {
+                if (configClient.checkExists().forPath(nodePath) == null) {
+                    super.register(meta);
+                }
+            } catch (Exception e) {
+                if (logger.isWarnEnabled()) {
+                    logger.warn("Check registry status, meta: {} path failed, {}.", meta, stackTrace(e));
+                }
+            }
+        }
+    }
+
+    @Override
+    public void connectToRegistryServer(String connectString) {
+        checkNotNull(connectString, "connectString");
+
+        configClient = CuratorFrameworkFactory.newClient(
+                connectString, sessionTimeoutMs, connectionTimeoutMs, new ExponentialBackoffRetry(500, 20));
+
+        configClient.getConnectionStateListenable().addListener(new ConnectionStateListener() {
+
+            @Override
+            public void stateChanged(CuratorFramework client, ConnectionState newState) {
+
+                logger.info("Zookeeper connection state changed {}.", newState);
+
+                if (newState == ConnectionState.RECONNECTED) {
+
+                    logger.info("Zookeeper connection has been re-established, will re-subscribe and re-registry.");
+
+                    // 重新订阅
+                    for (RegisterMeta.ServiceMeta serviceMeta : getSubscribeSet()) {
+                        doSubscribe(serviceMeta);
+                    }
+
+                    // 重新发布服务
+                    for (RegisterMeta meta : getRegisterMetaMap().keySet()) {
+                        ZookeeperRegistryService.super.register(meta);
+                    }
+                }
+            }
+        });
+
+        configClient.start();
+    }
+
+    @Override
+    public void destroy() {
+        for (PathChildrenCache childrenCache : pathChildrenCaches.values()) {
+            try {
+                childrenCache.close();
+            } catch (IOException ignored) {
+            }
+        }
+
+        configClient.close();
+    }
+
+    public List<RegisterMeta.ServiceMeta> findServiceMetaByAddress(RegisterMeta.Address address) {
+        return Lists.transform(
+                Lists.newArrayList(getServiceMeta(address)),
+                new Function<RegisterMeta.ServiceMeta, RegisterMeta.ServiceMeta>() {
+
+                    @Override
+                    public RegisterMeta.ServiceMeta apply(RegisterMeta.ServiceMeta input) {
+                        RegisterMeta.ServiceMeta copy = new RegisterMeta.ServiceMeta();
+                        copy.setGroup(input.getGroup());
+                        copy.setServiceProviderName(input.getServiceProviderName());
+                        copy.setVersion(input.getVersion());
+                        return copy;
+                    }
+                });
+    }
+
+    private RegisterMeta parseRegisterMeta(String data) {
+        String[] array_0 = Strings.split(data, '/');
+        RegisterMeta meta = new RegisterMeta();
+        meta.setGroup(array_0[2]);
+        meta.setServiceProviderName(array_0[3]);
+        meta.setVersion(array_0[4]);
+
+        String[] array_1 = Strings.split(array_0[5], ':');
+        meta.setHost(array_1[0]);
+        meta.setPort(Integer.parseInt(array_1[1]));
+        meta.setWeight(Integer.parseInt(array_1[2]));
+        meta.setConnCount(Integer.parseInt(array_1[3]));
+
+        return meta;
+    }
+
+    private ConcurrentSet<RegisterMeta.ServiceMeta> getServiceMeta(RegisterMeta.Address address) {
+        ConcurrentSet<RegisterMeta.ServiceMeta> serviceMetaSet = serviceMetaMap.get(address);
+        if (serviceMetaSet == null) {
+            ConcurrentSet<RegisterMeta.ServiceMeta> newServiceMetaSet = new ConcurrentSet<>();
+            serviceMetaSet = serviceMetaMap.putIfAbsent(address, newServiceMetaSet);
+            if (serviceMetaSet == null) {
+                serviceMetaSet = newServiceMetaSet;
+            }
+        }
+        return serviceMetaSet;
+    }
+//
+//    private void removeUnusedPath(String directory) {
+////        = String.format("/rpc/provider/%s/%s/%s",
+////                meta.getGroup(),
+////                meta.getServiceProviderName(),
+////                meta.getVersion());){
+////        List<String> paths = configClient.getChildren().forPath(directory);
+//        try {
+//            List<String> paths = configClient.getChildren().forPath(directory);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//
+//        directory = directory.substring(0, directory.lastIndexOf("/"));
+//
+//
+//        directory = directory.substring(0, directory.lastIndexOf("/"));
+//
+//    }
+
+}

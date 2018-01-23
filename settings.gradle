@@ -1,0 +1,3 @@
+rootProject.name = 'easy-rpc'
+include 'jupiter'
+include 'other'

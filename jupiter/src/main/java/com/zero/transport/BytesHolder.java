@@ -5,7 +5,7 @@ package com.zero.transport;
  */
 public class BytesHolder {
 
-    private byte serializerCode; //client端在request中设置该值，后续根据该值完成序列化/反序列化
+    private byte serializerCode; //client端在request中设置该值，后续根据该值完成序列化/反序列化,
     private byte[] bytes;
 
     public byte[] getBytes() {

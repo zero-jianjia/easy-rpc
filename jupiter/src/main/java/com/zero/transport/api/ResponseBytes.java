@@ -8,7 +8,7 @@ import com.zero.transport.BytesHolder;
 public class ResponseBytes extends BytesHolder {
 
     private final long id; // request.invokeId
-    private byte status;
+    private byte status;   // 状态码，区别响应结果是正常还是异常， must
 
     public ResponseBytes(long id) {
         this.id = id;

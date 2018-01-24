@@ -1,7 +1,7 @@
 package com.zero.transport.netty4.client;
 
 
-import com.zero.transport.Connection;
+import com.zero.transport.api.Connection;
 import com.zero.transport.api.channel.ChannelGroup;
 import com.zero.transport.api.processor.ConsumerProcessor;
 import com.zero.transport.netty4.handler.NettyDecoder;

@@ -1,5 +1,7 @@
 package com.zero.transport.api.channel;
 
+import com.zero.transport.api.FutureListener;
+
 import java.net.SocketAddress;
 
 public interface Channel {

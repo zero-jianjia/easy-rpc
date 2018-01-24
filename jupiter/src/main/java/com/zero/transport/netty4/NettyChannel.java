@@ -5,7 +5,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 import com.zero.transport.api.channel.Channel;
-import com.zero.transport.api.channel.FutureListener;
+import com.zero.transport.api.FutureListener;
 import com.zero.transport.netty4.client.ConnectionWatchdog;
 
 import java.net.SocketAddress;

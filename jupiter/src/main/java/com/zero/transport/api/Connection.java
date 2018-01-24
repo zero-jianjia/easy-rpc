@@ -1,4 +1,6 @@
-package com.zero.transport;
+package com.zero.transport.api;
+
+import com.zero.transport.UnresolvedAddress;
 
 public abstract class Connection {
 

@@ -9,12 +9,12 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
  * 加权轮询负载均衡.
- *
+ * <p>
  * 当前实现不会先去计算最大公约数再轮询, 通常最大权重和最小权重值不会相差过于悬殊,
  * 因此我觉得没有必要先去求最大公约数, 很可能产生没有必要的开销.
- *
+ * <p>
  * 每个服务应有各自独立的实例(index不共享)
- *
+ * <p>
  * <pre>
  * **********************************************************************
  *
@@ -41,7 +41,6 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
  *
  * **********************************************************************
  * </pre>
- *
  * @author jiachun.fjc
  */
 public class RoundRobinLoadBalancer extends AbstractLoadBalancer {
@@ -80,7 +79,6 @@ public class RoundRobinLoadBalancer extends AbstractLoadBalancer {
         }
 
         // 遍历权重
-        boolean allWarmUpComplete = true;
         int sumWeight = 0;
         WeightArray weightsSnapshot = weightArray(length);
         for (int i = 0; i < length; i++) {
@@ -90,7 +88,6 @@ public class RoundRobinLoadBalancer extends AbstractLoadBalancer {
 
             weightsSnapshot.set(i, val);
             sumWeight += val;
-            allWarmUpComplete = (allWarmUpComplete && group.isWarmUpComplete());
         }
 
         int maxWeight = 0;
@@ -101,8 +98,7 @@ public class RoundRobinLoadBalancer extends AbstractLoadBalancer {
             minWeight = Math.min(minWeight, val);
         }
 
-        if (allWarmUpComplete && maxWeight > 0 && minWeight == maxWeight) {
-            // 预热全部完成并且权重完全相同
+        if (maxWeight > 0 && minWeight == maxWeight) {
             groups.setSameWeight(true);
         }
 

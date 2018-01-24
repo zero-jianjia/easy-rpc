@@ -5,7 +5,7 @@ import com.zero.transport.api.RequestBytes;
 import com.zero.transport.api.ResponseBytes;
 import com.zero.transport.api.channel.Channel;
 import com.zero.transport.api.channel.ChannelGroup;
-import com.zero.transport.api.channel.FutureListener;
+import com.zero.transport.api.FutureListener;
 import com.zero.transport.api.processor.ConsumerProcessor;
 import com.zero.transport.netty4.client.NettyClient;
 

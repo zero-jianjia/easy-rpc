@@ -5,7 +5,7 @@ import com.zero.registry.OfflineListener;
 import com.zero.registry.RegisterMeta;
 import com.zero.registry.api.AbstractRegistryService;
 import com.zero.registry.api.RegistryService;
-import com.zero.transport.Connection;
+import com.zero.transport.api.Connection;
 import com.zero.transport.Directory;
 import com.zero.transport.UnresolvedAddress;
 import com.zero.transport.api.Client;

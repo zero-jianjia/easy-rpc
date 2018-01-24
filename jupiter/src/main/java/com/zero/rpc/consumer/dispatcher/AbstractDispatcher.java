@@ -15,7 +15,7 @@ import com.zero.transport.api.RequestBytes;
 import com.zero.transport.api.channel.Channel;
 import com.zero.transport.api.channel.ChannelGroup;
 import com.zero.transport.api.channel.CopyOnWriteGroupList;
-import com.zero.transport.api.channel.FutureListener;
+import com.zero.transport.api.FutureListener;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.zero.common.util.Maps;

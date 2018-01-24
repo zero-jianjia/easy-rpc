@@ -20,7 +20,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.zero.common.concurrent.NamedThreadFactory;
 import org.zero.common.util.ClassUtil;
 import org.zero.common.util.Maps;
-import com.zero.transport.Connection;
+import com.zero.transport.api.Connection;
 import com.zero.transport.api.ConnectionManager;
 import com.zero.transport.UnresolvedAddress;
 import com.zero.transport.api.channel.CopyOnWriteGroupList;

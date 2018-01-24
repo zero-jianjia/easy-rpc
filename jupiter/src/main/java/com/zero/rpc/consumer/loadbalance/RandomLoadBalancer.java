@@ -10,7 +10,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 加权随机负载均衡.
- *
+ * <p>
  * <pre>
  * *****************************************************************************
  *
@@ -24,7 +24,6 @@ import java.util.concurrent.ThreadLocalRandom;
  *
  * *****************************************************************************
  * </pre>
- *
  */
 public class RandomLoadBalancer extends AbstractLoadBalancer {
 
@@ -57,7 +56,6 @@ public class RandomLoadBalancer extends AbstractLoadBalancer {
         }
 
         // 遍历权重
-        boolean allWarmUpComplete = true;
         int sumWeight = 0;
         WeightArray weightsSnapshot = weightArray(length);
         for (int i = 0; i < length; i++) {
@@ -67,7 +65,6 @@ public class RandomLoadBalancer extends AbstractLoadBalancer {
 
             weightsSnapshot.set(i, val);
             sumWeight += val;
-            allWarmUpComplete = (allWarmUpComplete && group.isWarmUpComplete());
         }
 
         boolean sameWeight = true;
@@ -76,8 +73,7 @@ public class RandomLoadBalancer extends AbstractLoadBalancer {
             sameWeight = (val_0 == weightsSnapshot.get(i));
         }
 
-        if (allWarmUpComplete && sameWeight) {
-            // 预热全部完成并且权重完全相同
+        if (sameWeight) {
             groups.setSameWeight(true);
         }
 

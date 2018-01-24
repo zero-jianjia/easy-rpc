@@ -20,7 +20,7 @@ import com.zero.rpc.model.ClusterStrategyConfig;
 import com.zero.rpc.model.MethodSpecialConfig;
 import com.zero.rpc.model.ServiceMetaData;
 import com.zero.transport.Directory;
-import com.zero.transport.Connection;
+import com.zero.transport.api.Connection;
 import com.zero.transport.UnresolvedAddress;
 
 import java.util.Collections;

@@ -42,12 +42,6 @@ public interface ChannelGroup {
 
     void removeWeight(Directory directory);
 
-    int getWarmUp();
-
-    void setWarmUp(int warmUp);
-
-    boolean isWarmUpComplete();
-
     long timestamp();
 
     long deadlineMillis();

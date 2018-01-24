@@ -10,7 +10,7 @@ import com.zero.rpc.model.ResultWrapper;
 import com.zero.serialization.api.Serializer;
 import com.zero.transport.Status;
 import com.zero.transport.api.channel.Channel;
-import com.zero.transport.api.channel.FutureListener;
+import com.zero.transport.api.FutureListener;
 import com.zero.transport.api.RequestBytes;
 import com.zero.transport.api.ResponseBytes;
 import com.zero.transport.api.processor.ProviderProcessor;

@@ -14,7 +14,7 @@ import com.zero.rpc.tracing.TracingUtil;
 import com.zero.transport.Status;
 import com.zero.transport.api.ResponseBytes;
 import com.zero.transport.api.channel.Channel;
-import com.zero.transport.api.channel.FutureListener;
+import com.zero.transport.api.FutureListener;
 import io.netty.util.Signal;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;

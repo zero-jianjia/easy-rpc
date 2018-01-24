@@ -63,7 +63,6 @@ public class NettyChannelGroup implements ChannelGroup {
     @SuppressWarnings("unused")
     private volatile int index = 0;
     private volatile int capacity = Integer.MAX_VALUE;
-    private volatile int warmUp = JConstants.DEFAULT_WARM_UP; // warm-up time
     private volatile long timestamp = SystemClock.millisClock().now();
     private volatile long deadlineMillis = -1;
 
@@ -219,21 +218,6 @@ public class NettyChannelGroup implements ChannelGroup {
     }
 
     @Override
-    public int getWarmUp() {
-        return warmUp > 0 ? warmUp : 0;
-    }
-
-    @Override
-    public void setWarmUp(int warmUp) {
-        this.warmUp = warmUp;
-    }
-
-    @Override
-    public boolean isWarmUpComplete() {
-        return SystemClock.millisClock().now() - timestamp - warmUp > 0;
-    }
-
-    @Override
     public long timestamp() {
         return timestamp;
     }
@@ -264,7 +248,6 @@ public class NettyChannelGroup implements ChannelGroup {
 
         return "NettyChannelGroup{" +
                 "channels=" + channels +
-                ", warmUp=" + warmUp +
                 ", time=" + dateFormat.format(new Date(timestamp)) +
                 ", address=" + address +
                 '}';

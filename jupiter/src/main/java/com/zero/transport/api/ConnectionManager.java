@@ -4,7 +4,6 @@ package com.zero.transport.api;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import org.zero.common.util.Maps;
-import com.zero.transport.Connection;
 import com.zero.transport.UnresolvedAddress;
 
 import java.util.concurrent.ConcurrentMap;

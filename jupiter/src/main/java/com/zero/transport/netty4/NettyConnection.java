@@ -3,7 +3,7 @@ package com.zero.transport.netty4;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import com.zero.transport.Connection;
+import com.zero.transport.api.Connection;
 import com.zero.transport.UnresolvedAddress;
 
 public abstract class NettyConnection extends Connection {
